@@ -47,7 +47,7 @@ Markdownで記事を書き、自分のブログとして公開するための静
 - [GitHubを使わずに使う方法](https://ojach.github.io/blogkit-template/without-github/)
 - [コードブロックを、読む人にも書く人にもわかりやすく](https://ojach.github.io/blogkit-template/code-blocks/)
 
-## 独自ドメインで公開する
+## 独自ドメインで公開する(Cloudflare+Github)
 
 GitHub Pagesでの公開後、独自ドメインを使いたくなったらCloudflare Pagesへ接続します。
 
@@ -61,13 +61,27 @@ Cloudflare Pagesの **Workers & Pages → Create application → Pages → Conne
 
 Pagesの **Custom domains** で独自ドメインを設定し、`site.json`の`url`も独自ドメインに変更します。以降はGitHubへコミットすると、Cloudflare Pagesが自動でビルド・公開します。
 
-## ローカルで使う場合
+## ローカルで使う場合(Cloudflare+PC)
 
-Node.js 20以上が必要です。ローカルでビルドするときは、プロジェクトのフォルダで一度だけ依存関係をインストールします。
+Node.js 20以上が必要です。ローカルでビルドする場合は、
+
+- プロジェクトのフォルダで一度だけ依存関係をインストール
 
 ```bash
 npm install
+```
+
+- Cloudflareにログインする。
+
+```bash
+npx wrangler login
+```
+
+- 記事や設定を編集したら、ビルドしてデプロイする。
+
+```bash
 npm run build
+npx wrangler pages deploy dist --project-name Cloudflareのプロジェクト名
 ```
 
 生成された`dist/`が公開用ファイルです。`dist/`はビルド時に作られるため、直接編集しません。
