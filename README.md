@@ -63,6 +63,8 @@ Pagesの **Custom domains** で独自ドメインを設定し、`site.json`の`u
 
 ## ローカルで使う場合(Cloudflare+PC)
 
+Cloudflare Pagesの Workers & Pages → Create application → Continue to Pages → Drag and drop your files に、`dist/`をドラッグドロップします。
+
 Node.js 20以上が必要です。ローカルでビルドする場合は、
 
 - プロジェクトのフォルダで一度だけ依存関係をインストール
@@ -85,3 +87,4 @@ npx wrangler pages deploy dist --project-name Cloudflareのプロジェクト名
 ```
 
 生成された`dist/`が公開用ファイルです。`dist/`はビルド時に作られるため、直接編集しません。
+ビルドした後に、毎回`dist/`をドラッグドロップでもできます。
