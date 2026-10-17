@@ -1,0 +1,13 @@
+{
+  "title": "OJapp Blog Kit",
+  "description": "Markdownで書いて、自分のドメインに記事を積み上げるブログ。",
+  "url": "https://blogkit.ojapp.app",
+  "author": "OJapp",
+  "brand_color": "#187a68",
+  "icon": "",
+  "author_image": "",
+  "language": "ja-JP",
+  "features": {
+    "article_summary": true
+  }
+}

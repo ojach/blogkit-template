@@ -1,0 +1,38 @@
+[
+  {
+    "title": "はじめまして。OJapp Blog Kitへようこそ",
+    "description": "Markdownで記事を書き、自分のブログとして公開するOJapp Blog Kitの概要を紹介します。",
+    "excerpt": "Markdownで記事を書き、自分の場所に公開する。Blog Kitでできることと、記事公開の流れを紹介します。",
+    "url": "https://blogkit.ojapp.app/welcome/",
+    "published": "2026-10-14",
+    "displayDate": "2026年10月14日",
+    "category": "はじめに"
+  },
+  {
+    "title": "Use this templateから始める設定と使い方",
+    "description": "GitHubテンプレートから自分用リポジトリを作成し、ブログ設定、記事追加、Cloudflare PagesやGitHub Pagesへの公開まで解説します。",
+    "excerpt": "Use this templateでリポジトリを作るところから、ブログ設定・記事追加・公開までを順番に案内します。",
+    "url": "https://blogkit.ojapp.app/getting-started/",
+    "published": "2026-10-13",
+    "displayDate": "2026年10月13日",
+    "category": "使い方"
+  },
+  {
+    "title": "GitHubを使わずに使う方法",
+    "description": "OJapp Blog Kitをローカルだけで使う方法と、ビルドしたdistをCloudflare Pagesへ手動アップロードして公開する手順を紹介します。",
+    "excerpt": "GitHubなしでローカル執筆・プレビューする方法と、ビルドしたdistをCloudflare Pagesへアップロードする方法を解説します。",
+    "url": "https://blogkit.ojapp.app/without-github/",
+    "published": "2026-10-12",
+    "displayDate": "2026年10月12日",
+    "category": "使い方"
+  },
+  {
+    "title": "コードブロックを、読む人にも書く人にもわかりやすく",
+    "description": "言語表示、シンタックスハイライト、コピー、字下げガイド、Diff表示など、OJapp Blog Kitのコードブロックの使い方を紹介します。",
+    "excerpt": "色分けやコピー、字下げガイド、Diff表示。コードを書く人にも読む人にも便利なコードブロックの使い方を紹介します。",
+    "url": "https://blogkit.ojapp.app/code-blocks/",
+    "published": "2026-10-11",
+    "displayDate": "2026年10月11日",
+    "category": "Blog Kit"
+  }
+]

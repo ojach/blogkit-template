@@ -1,0 +1,39 @@
+{
+  "welcome": {
+    "title": "はじめまして。OJapp Blog Kitへようこそ",
+    "meta_description": "Markdownで記事を書き、自分のブログとして公開するOJapp Blog Kitの概要を紹介します。",
+    "excerpt": "Markdownで記事を書き、自分の場所に公開する。Blog Kitでできることと、記事公開の流れを紹介します。",
+    "summary": "記事はMarkdownで書き、GitHubへPushするとビルド・公開できます。記事一覧や検索、サイトマップ、RSS、OGP画像はビルド時に自動生成されます。",
+    "permalink": "welcome",
+    "category": "はじめに",
+    "published": "2026-10-14",
+    "next_article": "use-this-template"
+  },
+  "use-this-template": {
+    "title": "Use this templateから始める設定と使い方",
+    "meta_description": "GitHubテンプレートから自分用リポジトリを作成し、ブログ設定、記事追加、Cloudflare PagesやGitHub Pagesへの公開まで解説します。",
+    "excerpt": "Use this templateでリポジトリを作るところから、ブログ設定・記事追加・公開までを順番に案内します。",
+    "permalink": "getting-started",
+    "category": "使い方",
+    "published": "2026-10-13",
+    "next_article": "without-github"
+  },
+  "without-github": {
+    "title": "GitHubを使わずに使う方法",
+    "meta_description": "OJapp Blog Kitをローカルだけで使う方法と、ビルドしたdistをCloudflare Pagesへ手動アップロードして公開する手順を紹介します。",
+    "excerpt": "GitHubなしでローカル執筆・プレビューする方法と、ビルドしたdistをCloudflare Pagesへアップロードする方法を解説します。",
+    "permalink": "without-github",
+    "category": "使い方",
+    "published": "2026-10-12",
+    "next_article": "code-blocks"
+  },
+  "code-blocks": {
+    "title": "コードブロックを、読む人にも書く人にもわかりやすく",
+    "meta_description": "言語表示、シンタックスハイライト、コピー、字下げガイド、Diff表示など、OJapp Blog Kitのコードブロックの使い方を紹介します。",
+    "excerpt": "色分けやコピー、字下げガイド、Diff表示。コードを書く人にも読む人にも便利なコードブロックの使い方を紹介します。",
+    "permalink": "code-blocks",
+    "category": "Blog Kit",
+    "published": "2026-10-11",
+    "next_article": "welcome"
+  }
+}

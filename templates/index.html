@@ -1,0 +1,31 @@
+<main class="page">
+  <div class="home-grid">
+    <section>
+      <div class="intro">
+        <div class="eyebrow">PERSONAL BLOG ENGINE</div>
+        <h1>{{introTitle}}</h1>
+        <p class="muted">{{introDescription}}</p>
+      </div>
+
+      <label class="eyebrow" for="article-search">{{searchLabel}}</label>
+      <input
+        id="article-search"
+        class="search"
+        type="search"
+        placeholder="{{searchPlaceholder}}"
+        data-no-results="{{noResults}}"
+        data-index-url="{{searchIndexUrl}}"
+        data-search
+      >
+      <ul class="article-list" data-results>
+        {{articleCards}}
+      </ul>
+    </section>
+
+    <aside class="side-note">
+      <strong>Write freely.<br>Own what you build.</strong>
+      <p class="muted">{{sideDescription}}</p>
+    </aside>
+  </div>
+</main>
+<script src="{{searchScriptUrl}}" defer></script>
