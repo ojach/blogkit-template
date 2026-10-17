@@ -13,6 +13,17 @@ OJapp Blog Kitは、テンプレートから自分用のGitHubリポジトリを
 
 ## 2. 公開先を選ぶ
 
+### GitHub Pagesで公開する
+
+このテンプレートには、GitHub Pages用のActionsワークフローが含まれています。
+
+1. リポジトリの **Settings → Pages** を開きます。
+2. **Build and deployment → Source** を **GitHub Actions** にします。
+3. `main`へ変更をPushすると、Actionsがビルドして`dist/`を公開します。
+4. 公開URLや処理状況は **Actions** タブで確認できます。
+
+独自ドメインを使わないプロジェクトサイトでは、`site.json`の`url`を実際の公開URLに合わせます。たとえば`https://ユーザー名.github.io/リポジトリ名/`です。
+
 ### Cloudflare Pagesで公開する
 
 Cloudflare PagesのGit連携を使うと、GitHubへPushした変更をCloudflareが自動でビルドして公開します。
@@ -30,17 +41,6 @@ Cloudflare PagesのGit連携を使うと、GitHubへPushした変更をCloudflar
 Cloudflare Pagesが依存関係のインストール、ビルド、公開を行います。以降はリポジトリに変更をPushすると自動で更新されます。
 
 独自ドメインを使う場合は、Pagesプロジェクトの **Custom domains** から設定します。
-
-### GitHub Pagesで公開する
-
-このテンプレートには、GitHub Pages用のActionsワークフローが含まれています。
-
-1. リポジトリの **Settings → Pages** を開きます。
-2. **Build and deployment → Source** を **GitHub Actions** にします。
-3. `main`へ変更をPushすると、Actionsがビルドして`dist/`を公開します。
-4. 公開URLや処理状況は **Actions** タブで確認できます。
-
-独自ドメインを使わないプロジェクトサイトでは、`site.json`の`url`を実際の公開URLに合わせます。たとえば`https://ユーザー名.github.io/リポジトリ名/`です。
 
 > Cloudflare PagesとGitHub Pagesは別の公開先です。CloudflareのGit連携を使う場合、GitHub Pages用Actionsの設定は必要ありません。
 
