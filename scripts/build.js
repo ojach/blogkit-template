@@ -190,18 +190,7 @@ const footerHtmlFor = (language) => {
   const links = pages.filter((page) => page.language === language && page.showInFooter)
     .map((page) => `<a href="${esc(withBase(basePath, `/${page.permalink}/`))}">${esc(page.footerLabel)}</a>`).join('');
   const pageNav = links ? `<nav class="footer-pages" aria-label="${esc(labels.sitePages)}">${links}</nav>` : '';
-  const aboutText = language === 'en'
-  ? 'OJapp Tips is a technical blog about Progressive Web Apps (PWAs) and web app development. It covers home screen installation, app-like launch experiences, iOS and Android behavior, web standards, implementation, and troubleshooting based on hands-on testing.'
-  : 'OJapp Tipsは、PWA（Progressive Web Apps）とWebアプリの設計・開発を扱う技術ブログです。ホーム画面への追加やアプリのような起動体験を中心に、iOS・Androidでの動作検証、Web標準の仕様、実装方法やトラブルの解決策を、実際に試した結果をもとに紹介しています。';
-  return `<footer class="footer"><div class="footer-inner">
-  <a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a>
-  ${pageNav}
-  <details class="footer-about">
-    <summary>${language === 'en' ? 'About OJapp Tips' : 'OJapp Tipsについて'}</summary>
-    <p>${esc(aboutText)}</p>
-  </details>
-  <p class="footer-tagline">Built for the OJapp Blog Kit.</p>
-</div></footer>`;
+  return `<footer class="footer"><div class="footer-inner"><a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a>${pageNav}<p class="footer-tagline">Built for the OJapp Blog Kit.</p></div></footer>`;
 };
 
 const files = (await fs.readdir(path.join(root, 'content'))).filter((file) => file.endsWith('.md'));
