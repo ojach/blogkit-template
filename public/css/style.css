@@ -17,7 +17,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
-  line-height: 1.75;
+  line-height: 1.5;
 }
 
 a {
@@ -79,7 +79,7 @@ a:hover {
 }
 
 .intro h1 {
-  font-size: 2rem;
+  font-size: 1.8rem;
   line-height: 1.3;
   letter-spacing: -.04em;
   margin: 0 0 8px;
@@ -166,8 +166,8 @@ a:hover {
 }
 
 .prose {
-  font-size: 1.04rem;
-  line-height: 1.95;
+  font-size: 0.95rem;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -200,7 +200,19 @@ a:hover {
 .prose img {
   max-width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 4px;
+}
+
+.prose .ad-banner {
+  display: block;
+  margin: 1.5em 0;
+}
+
+.prose .ad-banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 2px;
 }
 
 .prose code {
@@ -253,8 +265,16 @@ a:hover {
 .toc {
   background: var(--soft);
   border-radius: 12px;
-  padding: 18px 24px;
+  padding: 14px 20px;
   margin: 0 0 34px;
+}
+
+.toc a {
+  font-size: 0.85em;
+}
+
+.toc summary {
+  font-size: 0.9em;
 }
 
 .article-summary {
@@ -320,11 +340,46 @@ a:hover {
 
 .footer {
   border-top: 1px solid var(--line);
-  margin-top: 70px;
-  padding: 24px;
-  text-align: center;
+  margin-top: 76px;
+  padding: 34px 24px 26px;
   color: var(--muted);
-  font-size: .85rem;
+  font-size: .9rem;
+}
+
+.footer-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.footer-brand {
+  color: var(--ink);
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+.footer-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 16px 0 12px;
+  padding: 14px 0;
+}
+
+.footer-pages a {
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 550;
+  transition: color .15s ease;
+}
+
+.footer-pages a:hover {
+  color: var(--brand);
+}
+
+.footer-tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
 }
 
 .empty {
@@ -357,6 +412,14 @@ a:hover {
 
 @media (max-width: 760px) {
 
+  .footer {
+    padding: 28px 18px 22px;
+  }
+
+  .footer-pages {
+    gap: 8px 18px;
+  }
+
   .header-inner {
     padding: 13px 18px;
   }
@@ -380,11 +443,11 @@ a:hover {
   }
 
   .prose {
-    font-size: 1rem;
+    font-size: 0.96rem;
   }
 
   .article h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
   }
 }
 
