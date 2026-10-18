@@ -1,0 +1,8 @@
+{
+  "about": {
+    "title": "このブログについて",
+    "description": "ブログや運営者について紹介する固定ページです。",
+    "permalink": "about",
+    "footer_label": "このブログについて"
+  }
+}
