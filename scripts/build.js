@@ -105,7 +105,7 @@ function imageUrl(basePath, value) {
   return withBase(basePath, imagePath);
 }
 
-function shell({ title, description, canonical, site, basePath, body, extra = '', ogImage = '', pwaIcon = '', customHeadHtml = '', customBodyHtml = '', lang = 'ja', brandColor = '#187a68', labels = localeText(lang), homePath = '/', languageHomeUrl = '' }) {
+function shell({ title, description, canonical, site, basePath, body, extra = '', ogImage = '', pwaIcon = '', customHeadHtml = '', customBodyHtml = '', footerHtml = '', lang = 'ja', brandColor = '#187a68', labels = localeText(lang), homePath = '/', languageHomeUrl = '' }) {
   const homeUrl = withBase(basePath, homePath);
   const cssUrl = withBase(basePath, '/css/style.css');
   const highlightUrl = withBase(basePath, '/css/highlight.css');
@@ -117,15 +117,16 @@ function shell({ title, description, canonical, site, basePath, body, extra = ''
   const ogImageTags = ogImage
     ? `<meta property="og:image" content="${esc(ogImage)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(ogImage)}">`
     : '<meta name="twitter:card" content="summary">';
-  return `<!doctype html><html lang="${esc(htmlLanguage(lang))}" style="--brand:${brandColor}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(canonical)}">${faviconTag}${pwaIconTag}<meta property="og:type" content="${extra ? 'article' : 'website'}"><meta property="og:site_name" content="${esc(site.title)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(canonical)}">${ogImageTags}<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><link rel="stylesheet" href="${esc(cssUrl)}"><link rel="stylesheet" href="${esc(highlightUrl)}"><link rel="alternate" type="application/rss+xml" title="${esc(site.title)} RSS" href="${esc(rssUrl)}">${extra}${customHeadHtml}</head><body><header class="site-header"><div class="header-inner"><a class="brand" href="${esc(homeUrl)}">${esc(site.title)}</a><nav class="nav"><a href="${esc(homeUrl)}">${esc(labels.articles)}</a><a href="${esc(rssUrl)}">${esc(labels.rss)}</a>${languageHomeUrl ? `<a href="${esc(languageHomeUrl)}" lang="${lang === 'en' ? 'ja' : 'en'}">${esc(labels.languageName)}</a>` : ''}</nav></div></header>${body}<footer class="footer">${esc(site.title)} · Built for the OJ Blog Kit.</footer>${customBodyHtml}</body></html>`;
+  return `<!doctype html><html lang="${esc(htmlLanguage(lang))}" style="--brand:${brandColor}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(canonical)}">${faviconTag}${pwaIconTag}<meta property="og:type" content="${extra ? 'article' : 'website'}"><meta property="og:site_name" content="${esc(site.title)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(canonical)}">${ogImageTags}<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><link rel="stylesheet" href="${esc(cssUrl)}"><link rel="stylesheet" href="${esc(highlightUrl)}"><link rel="alternate" type="application/rss+xml" title="${esc(site.title)} RSS" href="${esc(rssUrl)}">${extra}${customHeadHtml}</head><body><header class="site-header"><div class="header-inner"><a class="brand" href="${esc(homeUrl)}">${esc(site.title)}</a><nav class="nav"><a href="${esc(homeUrl)}">${esc(labels.articles)}</a><a href="${esc(rssUrl)}">${esc(labels.rss)}</a>${languageHomeUrl ? `<a href="${esc(languageHomeUrl)}" lang="${lang === 'en' ? 'ja' : 'en'}">${esc(labels.languageName)}</a>` : ''}</nav></div></header>${body}${footerHtml}${customBodyHtml}</body></html>`;
 }
 
 await fs.rm(out, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });
 
-const [site, metadata] = await Promise.all([readJson('site.json'), readJson('articles.json')]);
+const [site, metadata, pageMetadata] = await Promise.all([readJson('site.json'), readJson('articles.json'), readJson('pages.json')]);
 const shareScript = await fs.readFile(path.join(root, 'public/js/share.js'), 'utf8');
 const homeTemplate = await fs.readFile(path.join(root, 'templates/index.html'), 'utf8');
+const pageTemplate = await fs.readFile(path.join(root, 'templates/page.html'), 'utf8');
 const customHeadHtml = await fs.readFile(path.join(root, 'templates/custom-head.html'), 'utf8');
 const customBodyHtml = await fs.readFile(path.join(root, 'templates/custom-body-end.html'), 'utf8');
 const siteUrl = new URL(site.url);
@@ -134,6 +135,74 @@ const brandColor = /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(String(site.brand_color 
 const absoluteUrl = (pathname) => new URL(withBase(basePath, pathname), siteUrl.origin).href;
 const renderer = new marked.Renderer();
 renderer.image = ({ href, title, text }) => `<img src="${esc(imageUrl(basePath, href))}" alt="${esc(text)}"${title ? ` title="${esc(title)}"` : ''} loading="lazy">`;
+
+const adHtmlFor = (number) => {
+  const ad = site.ads?.[number] || (number === 1 ? site.ad : null);
+  const image = imageUrl(basePath, ad?.image);
+  let href = '';
+  try {
+    const candidate = new URL(String(ad?.url || ''));
+    if (candidate.protocol === 'https:' || candidate.protocol === 'http:') href = candidate.href;
+  } catch {
+    // Leave the marker empty when its ad URL is missing or invalid.
+  }
+  return image && href
+    ? `<a class="ad-banner" href="${esc(href)}" rel="sponsored noopener"><img src="${esc(image)}" alt="${esc(ad?.alt || '')}" loading="lazy"></a>`
+    : '';
+};
+marked.use({
+  extensions: [{
+    name: 'ojappAd',
+    level: 'block',
+    start(source) {
+      return /^\[\[ad(?:[1-6])?\]\]\s*$/m.exec(source)?.index;
+    },
+    tokenizer(source) {
+      const match = /^\[\[ad([1-6])?\]\](?:\r?\n|$)/.exec(source);
+      if (match) return { type: 'ojappAd', raw: match[0], number: match[1] || '1' };
+    },
+    renderer(token) {
+      const adHtml = adHtmlFor(token.number);
+      return adHtml ? `${adHtml}\n` : '';
+    },
+  }],
+});
+
+const pageDirectory = path.join(root, 'pages');
+await fs.mkdir(pageDirectory, { recursive: true });
+const pageFiles = (await fs.readdir(pageDirectory)).filter((file) => file.endsWith('.md'));
+const pages = [];
+for (const file of pageFiles) {
+  const key = path.basename(file, '.md');
+    const raw = await fs.readFile(path.join(pageDirectory, file), 'utf8');
+  const tokens = marked.lexer(raw);
+  const firstHeading = tokens.find((token) => token.type === 'heading' && token.depth === 1);
+  const headingText = (token) => token.tokens?.map((part) => part.text || part.raw || '').join('') || token.text || '';
+  const meta = pageMetadata[key] || {};
+  const title = meta.title || (firstHeading && headingText(firstHeading)) || key.replace(/[-_]/g, ' ');
+  const permalink = (meta.permalink || key).replace(/^\/+|\/+$/g, '');
+  const description = meta.description || raw.replace(/^#+ .*$/gm, '').replace(/<[^>]*>/g, ' ').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
+  pages.push({ key, title, description, permalink, language: localeKey(meta.language || site.language || 'ja'), footerLabel: meta.footer_label || title, showInFooter: meta.show_in_footer !== false, tokens, firstHeading });
+}
+
+const footerHtmlFor = (language) => {
+  const labels = localeText(language);
+  const links = pages.filter((page) => page.language === language && page.showInFooter)
+    .map((page) => `<a href="${esc(withBase(basePath, `/${page.permalink}/`))}">${esc(page.footerLabel)}</a>`).join('');
+  const pageNav = links ? `<nav class="footer-pages" aria-label="${esc(labels.sitePages)}">${links}</nav>` : '';
+  const aboutText = language === 'en'
+  ? 'OJapp Tips is a technical blog about Progressive Web Apps (PWAs) and web app development. It covers home screen installation, app-like launch experiences, iOS and Android behavior, web standards, implementation, and troubleshooting based on hands-on testing.'
+  : 'OJapp Tipsは、PWA（Progressive Web Apps）とWebアプリの設計・開発を扱う技術ブログです。ホーム画面への追加やアプリのような起動体験を中心に、iOS・Androidでの動作検証、Web標準の仕様、実装方法やトラブルの解決策を、実際に試した結果をもとに紹介しています。';
+  return `<footer class="footer"><div class="footer-inner">
+  <a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a>
+  ${pageNav}
+  <details class="footer-about">
+    <summary>${language === 'en' ? 'About OJapp Tips' : 'OJapp Tipsについて'}</summary>
+    <p>${esc(aboutText)}</p>
+  </details>
+  <p class="footer-tagline">Built for the OJapp Blog Kit.</p>
+</div></footer>`;
+};
 
 const files = (await fs.readdir(path.join(root, 'content'))).filter((file) => file.endsWith('.md'));
 const articles = [];
@@ -151,6 +220,14 @@ for (const file of files) {
   articles.push({ key, title, description, excerpt: meta.excerpt || description, summary: meta.summary || '', permalink, published: meta.published || '', category: meta.category || '', nextArticleKey: meta.next_article || '', translationKey: meta.translation || '', metaLanguage: meta.language || '', pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
 }
 articles.sort((a, b) => (b.published || '').localeCompare(a.published || '') || a.title.localeCompare(b.title));
+
+const permalinkOwners = new Map();
+for (const item of [...articles, ...pages]) {
+  if (permalinkOwners.has(item.permalink)) {
+    throw new Error(`Duplicate permalink "${item.permalink}" used by "${permalinkOwners.get(item.permalink)}" and "${item.key}".`);
+  }
+  permalinkOwners.set(item.permalink, item.key);
+}
 
 const codeBlockHtml = new Map();
 for (const article of articles) {
@@ -198,7 +275,7 @@ for (const language of languages) {
   });
   const destination = path.join(out, route.replace(/^\/+|\/+$/g, ''), 'index.html');
   await fs.mkdir(path.dirname(destination), { recursive: true });
-  await fs.writeFile(destination, shell({ title: site.title, description: site.description, canonical: absoluteUrl(route), site, basePath, body: home, pwaIcon: site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, brandColor, lang: language, labels, homePath: route, languageHomeUrl }));
+  await fs.writeFile(destination, shell({ title: site.title, description: site.description, canonical: absoluteUrl(route), site, basePath, body: home, pwaIcon: site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(language), brandColor, lang: language, labels, homePath: route, languageHomeUrl }));
   await fs.writeFile(path.join(out, searchFilename), JSON.stringify(makeSearchIndex(languageArticles), null, 2));
 }
 const sitemap = [];
@@ -220,7 +297,7 @@ for (const article of articles) {
     return `<h${depth} id="${id}">${rendered}</h${depth}>\n`;
   };
   const contentTokens = article.firstHeading ? article.tokens.slice(article.tokens.indexOf(article.firstHeading) + 1) : article.tokens;
-  const html = marked.parser(contentTokens, { renderer: articleRenderer });
+  const html = marked.parser(contentTokens, { renderer: articleRenderer, extensions: marked.defaults.extensions });
   const labels = article.labels;
   const tocHtml = toc.length ? `<details class="toc" open><summary>${esc(labels.toc)}</summary><ul>${toc.map((item) => `<li class="${item.level === 3 ? 'toc-h3' : ''}"><a href="#${esc(item.id)}">${esc(item.text)}</a></li>`).join('')}</ul></details>` : '';
   const canonical = absoluteUrl(`/${article.permalink}/`);
@@ -245,7 +322,7 @@ for (const article of articles) {
     ? `<p class="article-summary-next"><span>${esc(labels.next)}</span><a href="${esc(withBase(basePath, `/${nextArticle.permalink}/`))}">${esc(nextArticle.title)}</a></p>`
     : '';
   const summaryHtml = site.features?.article_summary !== false && article.summary
-    ? `<details class="article-summary"><summary>${esc(labels.summary)}</summary><div class="article-summary-content">${marked.parse(article.summary)}${summaryNextHtml}</div></details>`
+    ? `<details class="article-summary" open><summary>${esc(labels.summary)}</summary><div class="article-summary-content">${marked.parse(article.summary)}${summaryNextHtml}</div></details>`
     : '';
   const recommendations = articles.filter((candidate) => candidate.language === article.language && candidate !== article && candidate !== nextArticle).slice(0, 3);
   const nextSection = nextArticle
@@ -261,7 +338,7 @@ for (const article of articles) {
     : '';
   const articleActions = `<div class="article-actions" aria-label="${esc(labels.articleActions)}"><button type="button" class="icon-button" data-copy-link data-share-url="${esc(canonical)}" data-copy-failed="${esc(labels.copyFailed)}" data-link-copying="${esc(labels.linkCopying)}" data-link-copied="${esc(labels.linkCopied)}" aria-label="${esc(labels.copyLink)}" title="${esc(labels.copyLink)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button><button type="button" class="icon-button" data-share data-share-title="${esc(article.title)}" data-share-url="${esc(canonical)}" data-share-label="${esc(labels.sharing)}" data-copy-failed="${esc(labels.shareFailed)}" data-share-success="${esc(labels.shared)}" data-share-cancelled="${esc(labels.shareCancelled)}" data-url-copied="${esc(labels.urlCopied)}" aria-label="${esc(labels.shareArticle)}" title="${esc(labels.shareArticle)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/></svg></button><span class="share-status" data-share-status role="status" aria-live="polite"></span></div>`;
   const recommendationSection = recommendations.length
-    ? `<section class="recommendations" aria-labelledby="recommendations-title"><div class="section-label">${esc(labels.recommendations)}</div><h2 id="recommendations-title">${esc(labels.moreArticles)}</h2><ul class="recommendation-list">${recommendations.map((candidate) => `<li><div class="article-meta">${candidate.published ? `<time datetime="${esc(candidate.published)}">${esc(formatDate(candidate.published, candidate.language))}</time>` : ''}${candidate.category ? ` · ${esc(candidate.category)}` : ''}</div><h3><a href="${esc(withBase(basePath, `/${candidate.permalink}/`))}">${esc(candidate.title)}</a></h3><p>${esc(candidate.excerpt)}</p></li>`).join('')}</ul></section>`
+    ? `<section class="recommendations" aria-label="${esc(labels.recommendations)}"><div class="section-label">${esc(labels.recommendations)}</div><ul class="recommendation-list">${recommendations.map((candidate) => `<li><div class="article-meta">${candidate.published ? `<time datetime="${esc(candidate.published)}">${esc(formatDate(candidate.published, candidate.language))}</time>` : ''}${candidate.category ? ` · ${esc(candidate.category)}` : ''}</div><h3><a href="${esc(withBase(basePath, `/${candidate.permalink}/`))}">${esc(candidate.title)}</a></h3><p>${esc(candidate.excerpt)}</p></li>`).join('')}</ul></section>`
     : '';
   const translation = article.translationKey ? articles.find((candidate) => candidate.key === article.translationKey || candidate.permalink === article.translationKey) : null;
   const translationHtml = translation ? `<a class="translation-link" href="${esc(withBase(basePath, `/${translation.permalink}/`))}" lang="${esc(htmlLanguage(translation.language))}">${esc(labels.languageName)}</a>` : '';
@@ -278,7 +355,7 @@ for (const article of articles) {
     ? `<link rel="alternate" hreflang="${esc(htmlLanguage(article.language))}" href="${esc(canonical)}"><link rel="alternate" hreflang="${esc(htmlLanguage(translation.language))}" href="${esc(absoluteUrl(`/${translation.permalink}/`))}"><link rel="alternate" hreflang="x-default" href="${esc(absoluteUrl(`/${defaultLanguageArticle.permalink}/`))}">`
     : '';
   const extra = `${alternateLanguages}<script type="application/ld+json">${JSON.stringify(jsonld)}</script>`;
-  const htmlPage = shell({ title: `${article.title} | ${site.title}`, description: article.description, canonical, site, basePath, body: articleBody, extra, ogImage, pwaIcon: article.pwaIcon || site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, brandColor, lang: article.language, labels, homePath: articleHomePath, languageHomeUrl: articleLanguageHomeUrl });
+  const htmlPage = shell({ title: `${article.title} | ${site.title}`, description: article.description, canonical, site, basePath, body: articleBody, extra, ogImage, pwaIcon: article.pwaIcon || site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(article.language), brandColor, lang: article.language, labels, homePath: articleHomePath, languageHomeUrl: articleLanguageHomeUrl });
   const destination = path.join(out, article.permalink, 'index.html');
   await fs.mkdir(path.dirname(destination), { recursive: true });
   await fs.writeFile(destination, htmlPage);
@@ -286,8 +363,37 @@ for (const article of articles) {
   rss.push(`<item><title>${esc(article.title)}</title><link>${esc(canonical)}</link><guid>${esc(canonical)}</guid>${article.published ? `<pubDate>${new Date(`${article.published}T00:00:00Z`).toUTCString()}</pubDate>` : ''}<description>${esc(article.description)}</description></item>`);
 }
 
-await fs.writeFile(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${esc(absoluteUrl('/'))}</loc></url>${languages.filter((language) => language !== defaultLanguage).map((language) => `<url><loc>${esc(absoluteUrl(languageHomePath(language)))}</loc></url>`).join('')}${sitemap.join('')}</urlset>`);
+for (const page of pages) {
+  const pageRenderer = new marked.Renderer();
+  pageRenderer.image = renderer.image;
+  const contentTokens = page.firstHeading ? page.tokens.slice(page.tokens.indexOf(page.firstHeading) + 1) : page.tokens;
+  const content = marked.parser(contentTokens, { renderer: pageRenderer, extensions: marked.defaults.extensions });
+  const body = fillTemplate(pageTemplate, {
+    pageTitle: esc(page.title),
+    pageDescription: page.description ? `<p class="article-description">${esc(page.description)}</p>` : '',
+    pageContent: content,
+  });
+  const canonical = absoluteUrl(`/${page.permalink}/`);
+  const destination = path.join(out, page.permalink, 'index.html');
+  await fs.mkdir(path.dirname(destination), { recursive: true });
+  await fs.writeFile(destination, shell({
+    title: `${page.title} | ${site.title}`,
+    description: page.description,
+    canonical,
+    site,
+    basePath,
+    body,
+    customHeadHtml,
+    customBodyHtml,
+    footerHtml: footerHtmlFor(page.language),
+    brandColor,
+    lang: page.language,
+    homePath: page.language === defaultLanguage ? '/' : `/${page.language}/`,
+  }));
+}
+
+await fs.writeFile(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${esc(absoluteUrl('/'))}</loc></url>${languages.filter((language) => language !== defaultLanguage).map((language) => `<url><loc>${esc(absoluteUrl(languageHomePath(language)))}</loc></url>`).join('')}${sitemap.join('')}${pages.map((page) => `<url><loc>${esc(absoluteUrl(`/${page.permalink}/`))}</loc></url>`).join('')}</urlset>`);
 await fs.writeFile(path.join(out, 'rss.xml'), `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${esc(site.title)}</title><link>${esc(absoluteUrl('/'))}</link><description>${esc(site.description)}</description><language>${esc(site.language || 'ja-JP')}</language>${rss.join('')}</channel></rss>`);
 await fs.writeFile(path.join(out, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${absoluteUrl('/sitemap.xml')}\n`);
 await fs.cp(path.join(root, 'public'), out, { recursive: true });
-console.log(`Built ${articles.length} article(s) into dist/ (base path: ${basePath || '/'})`);
+console.log(`Built ${articles.length} article(s) and ${pages.length} static page(s) into dist/ (base path: ${basePath || '/'})`);
