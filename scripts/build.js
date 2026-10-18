@@ -311,7 +311,7 @@ for (const article of articles) {
     ? `<p class="article-summary-next"><span>${esc(labels.next)}</span><a href="${esc(withBase(basePath, `/${nextArticle.permalink}/`))}">${esc(nextArticle.title)}</a></p>`
     : '';
   const summaryHtml = site.features?.article_summary !== false && article.summary
-    ? `<details class="article-summary" open><summary>${esc(labels.summary)}</summary><div class="article-summary-content">${marked.parse(article.summary)}${summaryNextHtml}</div></details>`
+    ? `<details class="article-summary"><summary>${esc(labels.summary)}</summary><div class="article-summary-content">${marked.parse(article.summary)}${summaryNextHtml}</div></details>`
     : '';
   const recommendations = articles.filter((candidate) => candidate.language === article.language && candidate !== article && candidate !== nextArticle).slice(0, 3);
   const nextSection = nextArticle
