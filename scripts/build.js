@@ -30,6 +30,20 @@ function parseCodeInfo(info) {
   };
 }
 
+function decodeHtmlCode(value) {
+  const namedEntities = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0',
+  };
+  return String(value).replace(/&(#(?:x[\da-f]+|\d+)|[a-z]+);/gi, (match, entity) => {
+    if (entity[0] !== '#') return namedEntities[entity.toLowerCase()] ?? match;
+    const hex = entity[1]?.toLowerCase() === 'x';
+    const codePoint = Number.parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10);
+    return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+      ? String.fromCodePoint(codePoint)
+      : match;
+  });
+}
+
 function greatestCommonDivisor(a, b) {
   return b ? greatestCommonDivisor(b, a % b) : a;
 }
