@@ -95,9 +95,12 @@ npx serve dist
 ![作業画面](editor.png)
 ```
 
-画像をフォルダ分けする場合
-```
+画像をフォルダ分けする場合:
+```text
 public/images/screenshots/editor.png
+```
+記事では次のように参照します。
+```markdown
 ![作業画面](screenshots/editor.png)
 ```
 
