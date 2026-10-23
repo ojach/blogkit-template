@@ -78,7 +78,7 @@
   border-radius: 0;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: .9rem;
-  line-height: 1.75;
+  line-height: 0.95;
   tab-size: 2;
   -webkit-overflow-scrolling: touch;
 }
@@ -95,7 +95,7 @@
 .code-block .line {
   position: relative;
   display: block;
-  min-height: 1.75em;
+  min-height: 0.95em;
   isolation: isolate;
 }
 

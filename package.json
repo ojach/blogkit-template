@@ -5,8 +5,7 @@
   "type": "module",
   "description": "A lightweight static blog engine for your own domain.",
   "scripts": {
-    "build": "node scripts/build.js",
-    "push": "git add . && git commit -m 'update' && git push"
+    "build": "node scripts/build.js"
   },
   "engines": {
     "node": ">=20"

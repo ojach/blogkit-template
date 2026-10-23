@@ -1,90 +1,211 @@
 # OJapp Blog Kit
 
-**Built for the AI Writing Era.**  
-**Write freely. Own what you build.**
+Markdownで記事を書き、静的サイトとして公開できる軽量ブログキットです。WordPressなどからの移行にも、新しくブログを始める場合にも使えます。記事データはMarkdownとJSONで管理し、ビルドするとHTML、検索インデックス、RSS、サイトマップなどを生成します。
 
-Markdownで記事を書き、自分のブログとして公開するための静的ブログエンジンです。
-記事一覧・検索・RSS・サイトマップ・OGP画像などは、ビルド時に自動生成します。
+## 主な機能
 
-## まずはGitHub Pagesで公開
+- Markdown記事から静的HTMLを生成
+- 日本語・英語の記事と表示に対応
+- 目次、関連記事、検索、RSS、サイトマップを生成
+- OGP画像を記事ごとに自動生成（Noto Sans JP同梱）
+- 記事画像とサムネイルのJPG/PNGをWebPへ自動変換
+- 広告枠、固定ページ、カスタムHTMLを設定可能
+- GitHub PagesやCloudflare Pagesなどに公開可能
+- オプションで記事ごとのPWAアイコン画像を生成
 
-[サンプルサイト](https://ojach.github.io/blogkit-template/)
+## 必要な環境
 
-1. GitHubで **Use this template** → **Create a new repository** を選び、自分のリポジトリを作ります。
-2. 作成したリポジトリの **Settings → Pages → Build and deployment → Source** で **GitHub Actions** を選びます。
-3. `site.json`を開き、`url`を自分のGitHub PagesのURLに書き換えます。
+- Node.js 20以上
+- npm
 
-   ```json
-   "url": "https://ユーザー名.github.io/リポジトリ名/"
+## クイックスタート
+
+1. このフォルダで依存パッケージをインストールします。
+
+   ```bash
+   npm install
    ```
 
-4. 変更をコミットします。GitHub Actionsがビルドして公開します。公開先のURLと実行状況は **Actions** タブで確認できます。
+2. `site.json` のサイト名、説明、公開URL、作者名などを自分のサイトに合わせて編集します。`url` は公開するサイトのURLにしてください。
 
-これでGitHub Pagesでブログを公開できます。GitHub上で記事を追加・編集する場合、ローカルで`npm install`や`npm run build`をする必要はありません。
+3. `content/` にあるサンプル記事を編集するか、新しい `.md` ファイルを追加します。記事情報は `articles.json` に登録します。
 
-## 記事を書く
+4. ビルドします。
 
-`content/`にMarkdownファイルを作ります。たとえば`content/kiji.md`です。
+   ```bash
+   npm run build
+   ```
 
-```md
+生成された `dist/` をWebサーバーで配信してください。ローカルで確認する場合は、たとえば次のコマンドを使えます。
+
+```bash
+npx serve dist
+```
+
+## 記事の追加
+
+`content/` にMarkdownファイルを作成し、同じファイル名のキーを `articles.json` に追加します。
+
+```markdown
 # 記事タイトル
 
-ここから本文を書きます。
-
-## 見出し
-
-文章やリスト、リンク、画像、コードブロックなどを書けます。
+本文をMarkdownで書きます。
 ```
 
-最初の`#`見出しが記事タイトルになり、URLはファイル名から自動で作られます。公開日や「次に読む」記事などを指定したいときだけ、`articles.json`に設定を追加します。ファイルをコミットすると、Actionsがサイトを更新します。
+```json
+{
+  "getting-started": {
+    "title": "記事タイトル",
+    "published": "2026-10-23",
+    "category": "お知らせ",
+    "excerpt": "一覧ページに表示する短い紹介文です。",
+    "summary": "記事の要点を短くまとめます。",
+    "thumbnail": "covers/getting-started.jpg",
+    "thumbnail_alt": "記事のサムネイル"
+  }
+}
+```
 
-## 使い方を詳しく見る
+記事ファイル名がURLの基本になります。`permalink` を指定すればURLを変更できます。既存サイトから移行する場合、以前のURLに合わせて `permalink` を設定するとリンク切れを減らせます。
 
-サンプルサイトに、設定や記事の書き方をまとめた記事があります。
+主な記事項目:
 
-- [はじめまして。OJapp Blog Kitへようこそ](https://ojach.github.io/blogkit-template/welcome/)
-- [Use this templateから始める設定と使い方](https://ojach.github.io/blogkit-template/getting-started/)
-- [GitHubを使わずに使う方法](https://ojach.github.io/blogkit-template/without-github/)
-- [コードブロックを、読む人にも書く人にもわかりやすく](https://ojach.github.io/blogkit-template/code-blocks/)
-
-## 独自ドメインで公開する(Cloudflare+Github)
-
-GitHub Pagesでの公開後、独自ドメインを使いたくなったらCloudflare Pagesへ接続します。
-
-Cloudflare Pagesの **Workers & Pages → Create application → Pages → Connect to Git** から、自分のGitHubリポジトリを選び、次の内容でビルドを設定します。
-
-| 設定 | 値 |
+| 項目 | 説明 |
 | --- | --- |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
-| Framework preset | `None` |
+| `title` | 記事タイトル。省略時はMarkdownの最初のH1を使います。 |
+| `published` | 公開日（`YYYY-MM-DD`）。 |
+| `permalink` | URLのパス。省略時はファイル名を使います。 |
+| `category` | 一覧に表示するカテゴリ。 |
+| `excerpt` | 一覧や関連記事に表示する紹介文。 |
+| `summary` | 記事冒頭に表示する折りたたみ式の要約。 |
+| `meta_description` | 検索・OGP向けの説明文。 |
+| `language` | 記事の言語。英語記事は `en` を指定します。 |
+| `translation` | 翻訳記事同士を結びつけるキー。 |
+| `thumbnail` | 記事上部に表示するサムネイル画像。 |
+| `thumbnail_alt` | サムネイルの代替テキスト。 |
+| `show_thumbnail` | `false` にするとサムネイルを非表示にします。 |
+| `next_article` | 次に読む記事のキーまたはパーマリンク。 |
+| `pwa_icon` | 記事固有のPWAアイコン画像。 |
 
-Pagesの **Custom domains** で独自ドメインを設定し、`site.json`の`url`も独自ドメインに変更します。以降はGitHubへコミットすると、Cloudflare Pagesが自動でビルド・公開します。
+## 画像とWebP変換
 
-## ローカルで使う場合(Cloudflare+PC)
+画像は `public/images/` に置き、記事ではMarkdownで参照します。
 
-Cloudflare Pagesの Workers & Pages → Create application → Continue to Pages → Drag and drop your files に、`dist/`をドラッグドロップします。
-
-Node.js 20以上が必要です。ローカルでビルドする場合は、
-
-- プロジェクトのフォルダで一度だけ依存関係をインストール
-
-```bash
-npm install
+```markdown
+![作業画面](screenshots/editor.png)
 ```
 
-- Cloudflareにログインする。
+ビルド時に `public/images/` 内のJPG、JPEG、PNGをWebPに変換します。記事本文と `thumbnail` では、変換された画像が自動で使われます。元画像も `dist/images/` にコピーされるため、変換前のファイルも保持されます。GIF、SVG、WebPなどは変換せず、そのまま使います。
 
-```bash
-npx wrangler login
+特定の画像を元形式のまま表示したい場合は、画像タイトルに `blogkit:original` を指定します。
+
+```markdown
+![細部まで見せたい画像](screenshots/detail.png "blogkit:original")
 ```
 
-- 記事や設定を編集したら、ビルドしてデプロイする。
+この指定は画像ごとに使えます。HTMLの `title` 属性には出力されません。
 
-```bash
-npm run build
-npx wrangler pages deploy dist --project-name Cloudflareのプロジェクト名
+## サイト設定
+
+`site.json` でサイト全体の設定を行います。
+
+```json
+{
+  "title": "My Blog",
+  "description": "ブログの説明",
+  "url": "https://example.com/",
+  "author": "Your Name",
+  "brand_color": "#187a68",
+  "icon": "site-icon.png",
+  "author_image": "author.png",
+  "language": "ja-JP",
+  "features": {
+    "article_summary": true,
+    "article_pwa_icons": false
+  }
+}
 ```
 
-生成された`dist/`が公開用ファイルです。`dist/`はビルド時に作られるため、直接編集しません。
-ビルドした後に、毎回`dist/`をドラッグドロップでもできます。
+`url` には公開URLを設定してください。GitHub Pagesのプロジェクトサイトではリポジトリ名を含めたURL（例: `https://username.github.io/repository/`）を指定します。
+
+### 記事ごとのPWAアイコン（任意）
+
+`site.json` で `features.article_pwa_icons` を `true` にすると、記事タイトルから正方形のアイコン画像を生成し、各記事のHTMLに次のメタタグを追加します。
+
+```json
+"features": {
+  "article_pwa_icons": true
+}
+```
+
+独自のアイコンを使う記事では、`articles.json` の記事情報に `pwa_icon` を指定できます。指定がない記事だけ自動生成します。生成した画像は `dist/images/pwa-icons/` に出力されます。`templates/custom-head.html` などに利用側のスクリプトを追加して、`ojapp:icon` メタタグを読み取る構成にもできます。
+
+## 英語記事
+
+`articles.json` で記事に `"language": "en"` を設定すると、英語用のURL（既定では `/en/記事キー/`）と英語の表示ラベルを使います。翻訳記事を用意する場合は、それぞれの記事の `translation` に相手側の記事キーを設定してください。
+
+```json
+{
+  "hello-world": {
+    "title": "Hello, world",
+    "published": "2026-10-23",
+    "language": "en",
+    "translation": "hello-world-ja"
+  }
+}
+```
+
+サイトの既定言語は `site.json` の `language` で指定します。翻訳記事の対応状況や切り替えリンクは、記事の `translation` 情報をもとに表示されます。
+
+## 固定ページ
+
+`pages/` にMarkdownファイルを追加し、必要に応じて `pages.json` にタイトル、説明、URLなどを設定します。固定ページは記事一覧に含まれず、フッターに表示できます。
+
+## 広告枠
+
+記事本文に `[[ad]]` または `[[ad2]]` から `[[ad6]]` を記述すると、その位置に広告画像リンクを挿入できます。画像、リンク先、代替テキストは `site.json` の `ads` で設定します。未設定の枠は空のままになります。
+
+## OGP画像とフォント
+
+ビルド時に記事ごとのOGP画像を `dist/ogp/` に生成します。日本語表示用のNoto Sans JP可変フォントは `assets/fonts/` に同梱しているため、ビルド環境に別途フォントをインストールする必要はありません。
+
+## 公開
+
+### Cloudflare Pages
+
+GitリポジトリをCloudflare Pagesに接続し、次の設定を使います。
+
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Node.js: 20以上
+
+独自ドメインを使う場合は、Cloudflare Pages側でドメインを設定し、その公開URLを `site.json` の `url` に入力します。
+
+### GitHub Pages
+
+リポジトリにはGitHub Pages用のWorkflowを同梱しています。GitHubリポジトリの **Settings → Pages** でGitHub Actionsによる公開を選択してください。Workflowがビルドして `dist/` を公開します。
+
+`site.json` の `url` は、ユーザーサイトなら `https://username.github.io/`、プロジェクトサイトなら `https://username.github.io/repository/` のように設定します。
+
+## 移行時のヒント
+
+- 旧サイトの記事URLに合わせて `permalink` を設定します。
+- WordPressなどから本文をMarkdownへ変換し、記事ごとに `content/` へ保存します。
+- 画像を `public/images/` に置き、記事本文中の参照先を更新します。JPG/PNGはビルド時にWebP化されます。
+- リダイレクトが必要な場合は、利用するホスティングサービスのリダイレクト設定を追加します。
+- 移行後は、代表的な記事・画像・英語記事・固定ページをプレビューして確認します。
+
+## ディレクトリ構成
+
+```text
+content/          記事Markdown
+public/           CSS、JavaScript、画像などの静的ファイル
+pages/            固定ページMarkdown
+templates/        HTMLテンプレート
+assets/fonts/     OGP生成用フォント
+scripts/          ビルド処理
+articles.json     記事ごとの設定
+pages.json        固定ページごとの設定
+site.json         サイト全体の設定
+dist/             ビルド出力（自動生成）
+```

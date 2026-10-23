@@ -2,8 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
+import sharp from 'sharp';
 import { codeToHtml } from 'shiki';
-import { generateOgp } from './ogp.js';
+import { generateOgp, generatePwaIcon } from './ogp.js';
 import { formatDate, htmlLanguage, localeKey, localeText } from './locales.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,11 +79,11 @@ async function renderCodeBlock({ text, lang, labels }) {
   }];
 
   try {
-    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: 'vitesse-dark', transformers });
+    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: 'dark-plus', transformers });
   } catch {
     // Unknown language names remain readable as plain text instead of failing the whole build.
     highlighterLanguage = 'text';
-    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: 'vitesse-dark', transformers });
+    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: 'dark-plus', transformers });
   }
 
   const copyData = Buffer.from(String(text), 'utf8').toString('base64');
@@ -91,7 +92,7 @@ async function renderCodeBlock({ text, lang, labels }) {
 
 function collectCodeTokens(tokens, result = []) {
   for (const token of tokens || []) {
-    if (token.type === 'code') result.push(token);
+    if (token.type === 'code' || token.type === 'ojappHtmlCode') result.push(token);
     if (token.tokens) collectCodeTokens(token.tokens, result);
     if (token.items) {
       for (const item of token.items) collectCodeTokens(item.tokens, result);
@@ -117,6 +118,57 @@ function imageUrl(basePath, value) {
     ? image
     : `/images/${image.replace(/^images\//, '')}`;
   return withBase(basePath, imagePath);
+}
+
+const webpImages = new Map();
+const rasterExtensions = new Set(['.jpg', '.jpeg', '.png']);
+
+async function generateWebpImages() {
+  const sourceRoot = path.join(root, 'public/images');
+  const visit = async (directory) => {
+    let entries;
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+    for (const entry of entries) {
+      const source = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(source);
+        continue;
+      }
+      const extension = path.extname(entry.name).toLowerCase();
+      if (!entry.isFile() || !rasterExtensions.has(extension)) continue;
+      const relative = path.relative(sourceRoot, source);
+      const webpRelative = path.join(path.dirname(relative), `${path.basename(relative, extension)}.webp`);
+      const destination = path.join(out, 'images', 'webp', webpRelative);
+      try {
+        await fs.mkdir(path.dirname(destination), { recursive: true });
+        await sharp(source).rotate().webp({ quality: 82, effort: 4 }).toFile(destination);
+        webpImages.set(relative.split(path.sep).join('/'), `/images/webp/${webpRelative.split(path.sep).join('/')}`);
+      } catch (error) {
+        console.warn(`WebP conversion skipped for ${relative}: ${error.message}`);
+      }
+    }
+  };
+  await visit(sourceRoot);
+}
+
+function optimizedImageUrl(basePath, value, preserveOriginal = false) {
+  const image = String(value ?? '').trim();
+  if (!image || preserveOriginal || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(image)) return imageUrl(basePath, image);
+  const suffixIndex = image.search(/[?#]/);
+  const imagePath = suffixIndex < 0 ? image : image.slice(0, suffixIndex);
+  const suffix = suffixIndex < 0 ? '' : image.slice(suffixIndex);
+  const normalized = imagePath.startsWith('/') ? imagePath : `/images/${imagePath.replace(/^images\//, '')}`;
+  if (!normalized.startsWith('/images/')) return imageUrl(basePath, image);
+  const relative = normalized.slice('/images/'.length).split('/').join(path.sep);
+  const extension = path.extname(relative).toLowerCase();
+  if (!rasterExtensions.has(extension)) return imageUrl(basePath, image);
+  const webp = webpImages.get(relative.split(path.sep).join('/'));
+  return webp ? `${withBase(basePath, webp)}${suffix}` : imageUrl(basePath, image);
 }
 
 function shell({ title, description, canonical, site, basePath, body, extra = '', ogImage = '', pwaIcon = '', customHeadHtml = '', customBodyHtml = '', footerHtml = '', lang = 'ja', brandColor = '#187a68', labels = localeText(lang), homePath = '/', languageHomeUrl = '' }) {
@@ -147,8 +199,13 @@ const siteUrl = new URL(site.url);
 const basePath = siteUrl.pathname.replace(/\/$/, '');
 const brandColor = /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(String(site.brand_color || '')) ? site.brand_color : '#187a68';
 const absoluteUrl = (pathname) => new URL(withBase(basePath, pathname), siteUrl.origin).href;
+await generateWebpImages();
 const renderer = new marked.Renderer();
-renderer.image = ({ href, title, text }) => `<img src="${esc(imageUrl(basePath, href))}" alt="${esc(text)}"${title ? ` title="${esc(title)}"` : ''} loading="lazy">`;
+renderer.image = ({ href, title, text }) => {
+  const preserveOriginal = title?.trim().toLowerCase() === 'blogkit:original';
+  const imageTitle = preserveOriginal ? '' : title;
+  return `<img src="${esc(optimizedImageUrl(basePath, href, preserveOriginal))}" alt="${esc(text)}"${imageTitle ? ` title="${esc(imageTitle)}"` : ''} loading="lazy">`;
+};
 
 const adHtmlFor = (number) => {
   const ad = site.ads?.[number] || (number === 1 ? site.ad : null);
@@ -164,6 +221,8 @@ const adHtmlFor = (number) => {
     ? `<a class="ad-banner" href="${esc(href)}" rel="sponsored noopener"><img src="${esc(image)}" alt="${esc(ad?.alt || '')}" loading="lazy"></a>`
     : '';
 };
+const codeBlockHtml = new Map();
+let activeCodeLanguage = localeKey(site.language || 'ja');
 marked.use({
   extensions: [{
     name: 'ojappAd',
@@ -178,6 +237,31 @@ marked.use({
     renderer(token) {
       const adHtml = adHtmlFor(token.number);
       return adHtml ? `${adHtml}\n` : '';
+    },
+  }, {
+    name: 'ojappHtmlCode',
+    level: 'block',
+    start(source) {
+      return /<pre\b/i.exec(source)?.index;
+    },
+    tokenizer(source) {
+      const match = source.match(/^<pre\b[^>]*>\s*<code\b([^>]*)>([\s\S]*?)<\/code>\s*<\/pre>(?:\r?\n|$)/i);
+      if (!match) return;
+      const classValue = match[1].match(/\bclass\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      const classes = classValue?.slice(1).find(Boolean) || '';
+      const language = classes.match(/(?:^|\s)language-([\w.+-]+)/i)?.[1];
+      if (!language) return;
+      return {
+        type: 'ojappHtmlCode',
+        raw: match[0],
+        text: decodeHtmlCode(match[2]),
+        lang: language,
+      };
+    },
+    renderer(token) {
+      const key = JSON.stringify([activeCodeLanguage, token.text, token.lang || '']);
+      return codeBlockHtml.get(key)
+        || `<pre><code>${codeEscape(token.text)}</code></pre>\n`;
     },
   }],
 });
@@ -232,13 +316,12 @@ for (const item of [...articles, ...pages]) {
   permalinkOwners.set(item.permalink, item.key);
 }
 
-const codeBlockHtml = new Map();
-for (const article of articles) {
-  article.language = localeKey(article.metaLanguage || site.language || 'ja');
-  article.labels = localeText(article.language);
-  for (const token of collectCodeTokens(article.tokens)) {
-    const key = JSON.stringify([article.language, token.text, token.lang || '']);
-    if (!codeBlockHtml.has(key)) codeBlockHtml.set(key, await renderCodeBlock({ ...token, labels: article.labels }));
+for (const item of [...articles, ...pages]) {
+  item.language = item.language || localeKey(item.metaLanguage || site.language || 'ja');
+  item.labels = localeText(item.language);
+  for (const token of collectCodeTokens(item.tokens)) {
+    const key = JSON.stringify([item.language, token.text, token.lang || '']);
+    if (!codeBlockHtml.has(key)) codeBlockHtml.set(key, await renderCodeBlock({ ...token, labels: item.labels }));
   }
 }
 
@@ -284,6 +367,7 @@ for (const language of languages) {
 const sitemap = [];
 const rss = [];
 for (const article of articles) {
+  activeCodeLanguage = article.language;
   const toc = [];
   const usedIds = new Map();
   const articleRenderer = new marked.Renderer();
@@ -312,6 +396,17 @@ for (const article of articles) {
   const ogpPath = path.join(out, 'ogp', ogpFilename);
   const localizedSite = { ...site, author: authorName };
   await generateOgp({ root, destination: ogpPath, title: article.title, site: localizedSite, brandColor });
+  const generatedPwaIcon = `pwa-icons/${slug(article.key)}.png`;
+
+if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
+  await generatePwaIcon({
+    root,
+    destination: path.join(out, 'images', generatedPwaIcon),
+    title: article.title,
+    site,
+    brandColor,
+  });
+}
   const ogImage = absoluteUrl(`/ogp/${ogpFilename}`);
   const articleIndex = articles.indexOf(article);
   const explicitNext = article.nextArticleKey
@@ -335,7 +430,7 @@ for (const article of articles) {
     ? `<img src="${esc(imageUrl(basePath, site.author_image))}" alt="" loading="lazy">`
     : `<span aria-hidden="true">${esc([...String(authorName)][0])}</span>`;
   const authorSection = `<section class="author-card" aria-label="${esc(labels.author)}"><div class="author-avatar">${authorImage}</div><div class="author-copy"><div class="section-label">${esc(labels.author)}</div><strong>${esc(authorName)}</strong>${authorDescription ? `<p>${esc(authorDescription)}</p>` : ''}${authorUrl ? `<a class="author-link" href="${esc(authorUrl)}" rel="author">${esc(labels.profile)}</a>` : ''}</div></section>`;
-  const thumbnailImageUrl = imageUrl(basePath, article.thumbnail);
+  const thumbnailImageUrl = optimizedImageUrl(basePath, article.thumbnail);
   const thumbnail = thumbnailImageUrl && article.showThumbnail
     ? `<figure class="article-thumbnail"><img src="${esc(thumbnailImageUrl)}" alt="${esc(article.thumbnailAlt)}" fetchpriority="high"></figure>`
     : '';
@@ -358,7 +453,11 @@ for (const article of articles) {
     ? `<link rel="alternate" hreflang="${esc(htmlLanguage(article.language))}" href="${esc(canonical)}"><link rel="alternate" hreflang="${esc(htmlLanguage(translation.language))}" href="${esc(absoluteUrl(`/${translation.permalink}/`))}"><link rel="alternate" hreflang="x-default" href="${esc(absoluteUrl(`/${defaultLanguageArticle.permalink}/`))}">`
     : '';
   const extra = `${alternateLanguages}<script type="application/ld+json">${JSON.stringify(jsonld)}</script>`;
-  const htmlPage = shell({ title: `${article.title} | ${site.title}`, description: article.description, canonical, site, basePath, body: articleBody, extra, ogImage, pwaIcon: article.pwaIcon || site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(article.language), brandColor, lang: article.language, labels, homePath: articleHomePath, languageHomeUrl: articleLanguageHomeUrl });
+  const pwaIcon = article.pwaIcon
+  || (site.features?.article_pwa_icons === true
+    ? generatedPwaIcon
+    : site.pwa_icon || site.icon || '');
+  const htmlPage = shell({ title: `${article.title} | ${site.title}`, description: article.description, canonical, site, basePath, body: articleBody, extra, ogImage, pwaIcon, customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(article.language), brandColor, lang: article.language, labels, homePath: articleHomePath, languageHomeUrl: articleLanguageHomeUrl });
   const destination = path.join(out, article.permalink, 'index.html');
   await fs.mkdir(path.dirname(destination), { recursive: true });
   await fs.writeFile(destination, htmlPage);
@@ -367,6 +466,7 @@ for (const article of articles) {
 }
 
 for (const page of pages) {
+  activeCodeLanguage = page.language;
   const pageRenderer = new marked.Renderer();
   pageRenderer.image = renderer.image;
   const contentTokens = page.firstHeading ? page.tokens.slice(page.tokens.indexOf(page.firstHeading) + 1) : page.tokens;
