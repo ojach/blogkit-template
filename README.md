@@ -92,6 +92,12 @@ npx serve dist
 画像は `public/images/` に置き、記事ではMarkdownで参照します。
 
 ```markdown
+![作業画面](editor.png)
+```
+
+画像をフォルダ分けする場合
+```
+public/images/screenshots/editor.png
 ![作業画面](screenshots/editor.png)
 ```
 
