@@ -1,4 +1,4 @@
-# OJapp Blog Kit
+# OJapp Blog Kit Readme
 
 Markdownで記事を書き、静的サイトとして公開できる軽量ブログキットです。WordPressなどからの移行にも、新しくブログを始める場合にも使えます。記事データはMarkdownとJSONで管理し、ビルドするとHTML、検索インデックス、RSS、サイトマップなどを生成します。
 
