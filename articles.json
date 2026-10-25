@@ -35,5 +35,9 @@
     "category": "Blog Kit",
     "published": "2026-10-11",
     "next_article": "welcome"
+  },
+  "readme": {
+    "published": "2026-10-13",
+    "next_article": "guide"
   }
 }
