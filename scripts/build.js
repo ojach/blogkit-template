@@ -337,6 +337,7 @@ const makeSearchIndex = (languageArticles) => languageArticles.map((article) => 
 const defaultLanguage = localeKey(site.language || 'ja');
 const defaultLabels = localeText(defaultLanguage);
 const languages = [...new Set(articles.map((article) => article.language))];
+const articlesPerPage = 15;
 const languageHomePath = (language) => language === defaultLanguage ? '/' : `/${language}/`;
 for (const language of languages) {
   const languageArticles = articles.filter((article) => article.language === language);
@@ -344,10 +345,16 @@ for (const language of languages) {
   const route = languageHomePath(language);
   const searchFilename = language === defaultLanguage ? 'search-index.json' : `search-index.${language}.json`;
   const searchIndexUrl = withBase(basePath, `/${searchFilename}`);
-  const cards = languageArticles.map((article) => `<li class="article-card" data-card><div class="article-meta">${article.published ? `<time datetime="${esc(article.published)}">${esc(formatDate(article.published, article.language))}</time>` : `<span>${esc(labels.noDate)}</span>`}${article.category ? ` · ${esc(article.category)}` : ''}</div><h2><a href="${esc(withBase(basePath, `/${article.permalink}/`))}">${esc(article.title)}</a></h2><p>${esc(article.excerpt)}</p></li>`).join('');
+  const pageCount = Math.max(1, Math.ceil(languageArticles.length / articlesPerPage));
+  const cardsFor = (page) => languageArticles.slice((page - 1) * articlesPerPage, page * articlesPerPage).map((article) => `<li class="article-card" data-card><div class="article-meta">${article.published ? `<time datetime="${esc(article.published)}">${esc(formatDate(article.published, article.language))}</time>` : `<span>${esc(labels.noDate)}</span>`}${article.category ? ` · ${esc(article.category)}` : ''}</div><h2><a href="${esc(withBase(basePath, `/${article.permalink}/`))}">${esc(article.title)}</a></h2><p>${esc(article.excerpt)}</p></li>`).join('');
   const languageHomeUrl = languages.length > 1
     ? withBase(basePath, languageHomePath(language === 'en' ? 'ja' : 'en'))
     : '';
+  for (let page = 1; page <= pageCount; page += 1) {
+  const pageRoute = page === 1 ? route : `${route.replace(/\/$/, '')}/page/${page}/`;
+  const previous = page > 1 ? `<a href="${esc(withBase(basePath, page === 2 ? route : `${route.replace(/\/$/, '')}/page/${page - 1}/`))}">← 前の15件</a>` : '';
+  const next = page < pageCount ? `<a href="${esc(withBase(basePath, `${route.replace(/\/$/, '')}/page/${page + 1}/`))}">次の15件 →</a>` : '';
+  const pagination = pageCount > 1 ? `<nav class="pagination" aria-label="記事一覧ページ">${previous}<span>${page} / ${pageCount}</span>${next}</nav>` : '';
   const home = fillTemplate(homeTemplate, {
     introTitle: esc(labels.introTitle),
     introDescription: esc(labels.introDescription),
@@ -355,13 +362,15 @@ for (const language of languages) {
     searchPlaceholder: esc(labels.searchPlaceholder),
     noResults: esc(language === 'en' ? 'No matching articles.' : '該当する記事はありません'),
     searchIndexUrl: esc(searchIndexUrl),
-    articleCards: cards || `<li class="empty">${esc(labels.noArticles)}</li>`,
+    articleCards: cardsFor(page) || `<li class="empty">${esc(labels.noArticles)}</li>`,
+    pagination,
     sideDescription: esc(labels.sideDescription),
     searchScriptUrl: esc(withBase(basePath, '/js/search.js')),
   });
-  const destination = path.join(out, route.replace(/^\/+|\/+$/g, ''), 'index.html');
+  const destination = path.join(out, pageRoute.replace(/^\/+|\/+$/g, ''), 'index.html');
   await fs.mkdir(path.dirname(destination), { recursive: true });
-  await fs.writeFile(destination, shell({ title: site.title, description: site.description, canonical: absoluteUrl(route), site, basePath, body: home, pwaIcon: site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(language), brandColor, lang: language, labels, homePath: route, languageHomeUrl }));
+  await fs.writeFile(destination, shell({ title: site.title, description: site.description, canonical: absoluteUrl(pageRoute), site, basePath, body: home, pwaIcon: site.pwa_icon || site.icon || '', customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(language), brandColor, lang: language, labels, homePath: route, languageHomeUrl }));
+  }
   await fs.writeFile(path.join(out, searchFilename), JSON.stringify(makeSearchIndex(languageArticles), null, 2));
 }
 const sitemap = [];
