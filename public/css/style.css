@@ -489,6 +489,15 @@ a:hover {
   }
 }
 
+.related-section-title {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
 .section-label {
   color: var(--muted);
   font-size: .78rem;
@@ -645,3 +654,4 @@ a:hover {
     height: 48px;
   }
 }
+
