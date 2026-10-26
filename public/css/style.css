@@ -143,20 +143,20 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 28px;
+  margin-top: 6px;
   padding-top: 18px;
-  border-top: 1px solid var(--line);
 }
 
 .pagination a {
   color: var(--brand);
   font-weight: 600;
   text-decoration: none;
+  font-size: .84rem;
 }
 
 .pagination span {
   color: var(--muted);
-  font-size: .9rem;
+  font-size: .82rem;
 }
 
 .translation-link {
