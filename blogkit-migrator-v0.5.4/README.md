@@ -73,7 +73,7 @@ node migrate.js wordpress.xml --format markdown --output migration-md --translat
 - WordPress本文のHTMLエンティティ（例: `&lt;head&gt;`）を本文取得時にデコードせず、保持したHTMLブロック内でタグ化する問題を修正。
 - 画像URL・内部リンクは自動変更しません。
 
-## 画像URLの任意変換（v0.5.4）
+## 画像URLの任意変換（v0.5.6）
 
 `--rewrite-images` を付けると、WordPressの `wp-content/uploads/` 配下にある本文画像URLをBlog Kit用に書き換えます。初期設定はOFFです。画像ファイル自体は取得・移動しません。
 
@@ -89,3 +89,11 @@ node migrate.js wordpress.xml --format markdown --rewrite-images --output migrat
 - `-312x500` のような寸法表記は除去しますが、元画像の存在は保証できません。元ファイルを `public/images/` に配置してください。
 - ファイル名の重複、`-scaled` や最初から寸法付きの名前で保存された画像には注意してください。
 - 画像のない場合や、画像URLをそのまま使いたい場合はオプションを付けないでください。
+
+
+### v0.5.6
+Markdown変換時、`<strong>` / `<em>`（および `<b>` / `<i>`）をHTMLのまま保持します。日本語の文字に密着した強調表現で `**` / `*` がそのまま表示される問題を回避します。CLI版とWeb版に適用。
+
+### v0.5.6
+- Convert supported WordPress `[video src="..."]` and `[video mp4="..."]` shortcodes to HTML5 `<video controls>` in both preserve and Markdown modes.
+- Preserve unknown plugin shortcodes and report warnings.

@@ -51,12 +51,10 @@ s=s.replace(/<pre\b([^>]*)>([\s\S]*?)<\/pre>/gi,(_,attrs,inner)=>{let code=inner
 s=s.replace(/<(table|figure|iframe|video|audio|svg|details|form|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,m=>{warnings.push('preserved_html:'+m.match(/^<([\w-]+)/)[1]);return protect(m)});
 // Common standalone images.
 s=s.replace(/<img\b[^>]*>/gi,tag=>{let src=(tag.match(/\bsrc\s*=\s*(["'])(.*?)\1/i)||[])[2];if(!src){warnings.push('image_without_src');return tag}let alt=(tag.match(/\balt\s*=\s*(["'])(.*?)\1/i)||[])[2]||'';return `![${escapeMd(decode(alt))}](${src})`});
-// When a bold label ends in a colon, separate it from following text.
-// Some Markdown renderers fail to close **name:** or **name：** immediately before Japanese text.
-s=s.replace(/(<(?:strong|b)>[^<]*[:：]<\/(?:strong|b)>)(?=[^\s<])/gi, '$1 ');
 // Links and simple inline emphasis; retain complex/custom tags.
 s=s.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi,(all,a,inner)=>{let href=(a.match(/\bhref\s*=\s*(["'])(.*?)\1/i)||[])[2];return href&&!/<[a-z]/i.test(inner)?`[${decode(inner)}](${href})`:all});
-s=s.replace(/<(strong|b)>([^<]*)<\/\1>/gi,(_,tag,v)=>`**${decode(v)}**`).replace(/<(em|i)>([^<]*)<\/\1>/gi,(_,tag,v)=>`*${decode(v)}*`).replace(/<code\b[^>]*>([^<]*)<\/code>/gi,(_,v)=>'`'+decode(v).replace(/`/g,'\\`')+'`');
+// Keep inline emphasis as HTML to preserve Japanese text boundaries and nested markup.
+s=s.replace(/<code\b[^>]*>([^<]*)<\/code>/gi,(_,v)=>'`'+decode(v).replace(/`/g,'\\`')+'`');
 s=s.replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi,(_,n,v)=>'\n\n'+'#'.repeat(Number(n))+' '+decode(v.replace(/<[^>]+>/g,'').replace(/^\*\*(.*?)\*\*$/,'$1'))+'\n\n');
 s=s.replace(/<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>/gi,(_,v)=>'\n\n'+v.replace(/<\/?p\b[^>]*>/gi,'').trim().split('\n').map(line=>'> '+decode(line)).join('\n')+'\n\n');
 s=convertLists(s);
