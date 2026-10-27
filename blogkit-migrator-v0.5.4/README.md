@@ -1,4 +1,4 @@
-# OJapp Blog Kit Migrator v0.5.3
+# OJapp Blog Kit Migrator v0.5.6
 
 WordPress標準XML（WXR）をBlog Kit形式に変換するNode.jsツールです。**XMLと翻訳対応表は外部サーバーに送信しません。** Node.jsのみで動作し、npm installは不要です。
 
