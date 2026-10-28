@@ -279,8 +279,14 @@ for (const file of pageFiles) {
   const meta = pageMetadata[key] || {};
   const title = meta.title || (firstHeading && headingText(firstHeading)) || key.replace(/[-_]/g, ' ');
   const permalink = (meta.permalink || key).replace(/^\/+|\/+$/g, '');
-  const description = meta.description || raw.replace(/^#+ .*$/gm, '').replace(/<[^>]*>/g, ' ').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
-  pages.push({ key, title, description, permalink, language: localeKey(meta.language || site.language || 'ja'), footerLabel: meta.footer_label || title, showInFooter: meta.show_in_footer !== false, tokens, firstHeading });
+  const contentTokens = firstHeading ? tokens.slice(tokens.indexOf(firstHeading) + 1) : [...tokens];
+  const firstParagraphIndex = contentTokens.findIndex((token) => token.type === 'paragraph');
+  const firstParagraph = firstParagraphIndex >= 0 ? contentTokens[firstParagraphIndex] : null;
+  const explicitDescription = meta.description || '';
+  const description = explicitDescription || raw.replace(/^#+ .*$/gm, '').replace(/<[^>]*>/g, ' ').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
+  const visibleDescription = explicitDescription || (firstParagraph ? firstParagraph.text.slice(0, 160) : '');
+  if (!explicitDescription && firstParagraph) contentTokens.splice(firstParagraphIndex, 1);
+  pages.push({ key, title, description, visibleDescription, permalink, language: localeKey(meta.language || site.language || 'ja'), footerLabel: meta.footer_label || title, showInFooter: meta.show_in_footer !== false, contentTokens, firstHeading });
 }
 
 const footerHtmlFor = (language) => {
@@ -310,10 +316,16 @@ for (const file of files) {
   const headingText = (token) => token.tokens?.map((part) => part.text || part.raw || '').join('') || token.text || '';
   const meta = metadata[key] || {};
   const title = meta.title || (firstHeading && headingText(firstHeading)) || key.replace(/[-_]/g, ' ');
-  const description = meta.meta_description || meta.excerpt || raw.replace(/^#+ .*$/gm, '').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
+  const contentTokens = firstHeading ? tokens.slice(tokens.indexOf(firstHeading) + 1) : [...tokens];
+  const firstParagraphIndex = contentTokens.findIndex((token) => token.type === 'paragraph');
+  const firstParagraph = firstParagraphIndex >= 0 ? contentTokens[firstParagraphIndex] : null;
+  const explicitDescription = meta.meta_description || meta.excerpt || '';
+  const description = explicitDescription || raw.replace(/^#+ .*$/gm, '').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
+  const visibleDescription = explicitDescription || (firstParagraph ? firstParagraph.text.slice(0, 160) : '');
+  if (!explicitDescription && firstParagraph) contentTokens.splice(firstParagraphIndex, 1);
   const defaultPermalink = meta.language && localeKey(meta.language) === 'en' ? `en/${key}` : key;
   const permalink = (meta.permalink || defaultPermalink).replace(/^\/+|\/+$/g, '');
-  articles.push({ key, title, description, excerpt: meta.excerpt || description, summary: meta.summary || '', permalink, published: frontMatter.published || meta.published || '', updated: frontMatter.updated || meta.updated || '', category: frontMatter.category || meta.category || '', nextArticleKey: meta.next_article || '', translationKey: meta.translation || '', metaLanguage: frontMatter.language || meta.language || '', pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
+  articles.push({ key, title, description, visibleDescription, contentTokens, excerpt: meta.excerpt || description, summary: meta.summary || '', permalink, published: frontMatter.published || meta.published || '', updated: frontMatter.updated || meta.updated || '', category: frontMatter.category || meta.category || '', nextArticleKey: meta.next_article || '', translationKey: meta.translation || '', metaLanguage: frontMatter.language || meta.language || '', pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
 }
 articles.sort((a, b) => (b.published || '').localeCompare(a.published || '') || a.title.localeCompare(b.title));
 
@@ -401,8 +413,7 @@ for (const article of articles) {
     if (depth >= 2) toc.push({ id, text: plain, level: depth });
     return `<h${depth} id="${id}">${rendered}</h${depth}>\n`;
   };
-  const contentTokens = article.firstHeading ? article.tokens.slice(article.tokens.indexOf(article.firstHeading) + 1) : article.tokens;
-  const html = marked.parser(contentTokens, { renderer: articleRenderer, extensions: marked.defaults.extensions });
+  const html = marked.parser(article.contentTokens, { renderer: articleRenderer, extensions: marked.defaults.extensions });
   const labels = article.labels;
   const tocHtml = toc.length ? `<details class="toc" open><summary>${esc(labels.toc)}</summary><ul>${toc.map((item) => `<li class="${item.level === 3 ? 'toc-h3' : ''}"><a href="#${esc(item.id)}">${esc(item.text)}</a></li>`).join('')}</ul></details>` : '';
   const canonical = absoluteUrl(`/${article.permalink}/`);
@@ -465,7 +476,8 @@ if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
   const articleLanguageHomeUrl = languages.length > 1
     ? withBase(basePath, languageHomePath(article.language === 'en' ? 'ja' : 'en'))
     : '';
-  const articleBody = `<main class="article"><header class="article-head"><div class="article-meta">${article.published ? `<time datetime="${esc(article.published)}">${esc(formatDate(article.published, article.language))}</time>` : ''}${article.category ? ` · ${esc(article.category)}` : ''}${translationHtml ? ` · ${translationHtml}` : ''}</div><h1>${esc(article.title)}</h1><p class="article-description">${esc(article.description)}</p></header>${thumbnail}${summaryHtml}${tocHtml}<article class="prose">${html}</article>${articleActions}${nextSection}${authorSection}${recommendationSection}<p class="muted"><a href="${esc(withBase(basePath, articleHomePath))}">${esc(labels.backToArticles)}</a></p></main><script>${shareScript}</script>`;
+  const articleDescriptionHtml = article.visibleDescription ? `<p class="article-description">${esc(article.visibleDescription)}</p>` : '';
+  const articleBody = `<main class="article"><header class="article-head"><div class="article-meta">${article.published ? `<time datetime="${esc(article.published)}">${esc(formatDate(article.published, article.language))}</time>` : ''}${article.category ? ` · ${esc(article.category)}` : ''}${translationHtml ? ` · ${translationHtml}` : ''}</div><h1>${esc(article.title)}</h1>${articleDescriptionHtml}</header>${thumbnail}${summaryHtml}${tocHtml}<article class="prose">${html}</article>${articleActions}${nextSection}${authorSection}${recommendationSection}<p class="muted"><a href="${esc(withBase(basePath, articleHomePath))}">${esc(labels.backToArticles)}</a></p></main><script>${shareScript}</script>`;
   const defaultLanguageArticle = translation && translation.language === defaultLanguage ? translation : article;
   const alternateLanguages = translation
     ? `<link rel="alternate" hreflang="${esc(htmlLanguage(article.language))}" href="${esc(canonical)}"><link rel="alternate" hreflang="${esc(htmlLanguage(translation.language))}" href="${esc(absoluteUrl(`/${translation.permalink}/`))}"><link rel="alternate" hreflang="x-default" href="${esc(absoluteUrl(`/${defaultLanguageArticle.permalink}/`))}">`
@@ -488,11 +500,10 @@ for (const page of pages) {
   activeCodeLanguage = page.language;
   const pageRenderer = new marked.Renderer();
   pageRenderer.image = renderer.image;
-  const contentTokens = page.firstHeading ? page.tokens.slice(page.tokens.indexOf(page.firstHeading) + 1) : page.tokens;
-  const content = marked.parser(contentTokens, { renderer: pageRenderer, extensions: marked.defaults.extensions });
+  const content = marked.parser(page.contentTokens, { renderer: pageRenderer, extensions: marked.defaults.extensions });
   const body = fillTemplate(pageTemplate, {
     pageTitle: esc(page.title),
-    pageDescription: page.description ? `<p class="article-description">${esc(page.description)}</p>` : '',
+    pageDescription: page.visibleDescription ? `<p class="article-description">${esc(page.visibleDescription)}</p>` : '',
     pageContent: content,
   });
   const canonical = absoluteUrl(`/${page.permalink}/`);
