@@ -405,7 +405,7 @@ for (const article of articles) {
   articleRenderer.code = ({ text, lang }) => codeBlockHtml.get(JSON.stringify([article.language, text, lang || ''])) || `<pre><code>${codeEscape(text)}</code></pre>\n`;
   articleRenderer.heading = ({ tokens, depth }) => {
     const rendered = articleRenderer.parser.parseInline(tokens);
-    const plain = rendered.replace(/<[^>]*>/g, '');
+    const plain = decodeHtmlCode(rendered.replace(/<[^>]*>/g, ''));
     const base = slug(plain);
     const count = usedIds.get(base) || 0;
     usedIds.set(base, count + 1);
