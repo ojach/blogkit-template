@@ -319,15 +319,49 @@ for (const file of files) {
   const contentTokens = firstHeading ? tokens.slice(tokens.indexOf(firstHeading) + 1) : [...tokens];
   const firstParagraphIndex = contentTokens.findIndex((token) => token.type === 'paragraph');
   const firstParagraph = firstParagraphIndex >= 0 ? contentTokens[firstParagraphIndex] : null;
-  const explicitDescription = meta.meta_description || meta.excerpt || '';
-  const description = explicitDescription || raw.replace(/^#+ .*$/gm, '').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
-  const visibleDescription = explicitDescription || (firstParagraph ? firstParagraph.text.slice(0, 160) : '');
-  if (!explicitDescription && firstParagraph) contentTokens.splice(firstParagraphIndex, 1);
-  const defaultPermalink = meta.language && localeKey(meta.language) === 'en' ? `en/${key}` : key;
-  const permalink = (meta.permalink || defaultPermalink).replace(/^\/+|\/+$/g, '');
-  articles.push({ key, title, description, visibleDescription, contentTokens, excerpt: meta.excerpt || description, summary: meta.summary || '', permalink, published: frontMatter.published || meta.published || '', updated: frontMatter.updated || meta.updated || '', category: frontMatter.category || meta.category || '', nextArticleKey: meta.next_article || '', translationKey: meta.translation || '', metaLanguage: frontMatter.language || meta.language || '', pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
+  // Frontmatter takes precedence over articles.json for the five basic fields.
+  const explicitExcerpt = frontMatter.excerpt ?? meta.excerpt ?? '';
+  const excerpt = explicitExcerpt || (firstParagraph ? firstParagraph.text.slice(0, 160) : '');
+  const explicitMetaDescription = meta.meta_description || '';
+  const description = explicitExcerpt || explicitMetaDescription || (firstParagraph ? firstParagraph.text.slice(0, 160) : '') || raw.replace(/^#+ .*$/gm, '').replace(/[`*_>#\[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || title;
+  const visibleDescription = excerpt;
+  if (!explicitExcerpt && firstParagraph) contentTokens.splice(firstParagraphIndex, 1);
+  const defaultLanguage = localeKey(site.language || 'ja');
+  const configuredLanguage = meta.language ? localeKey(meta.language) : '';
+  const inferredEnglish = key.startsWith('en--');
+  const defaultPermalink = (configuredLanguage === 'en' || (!configuredLanguage && inferredEnglish))
+    ? `en/${inferredEnglish ? key.slice(4) : key}` : key;
+  const permalink = String(frontMatter.permalink ?? meta.permalink ?? defaultPermalink).replace(/^\/+|\/+$/g, '');
+  // URL language prefix is authoritative; otherwise honor existing JSON metadata.
+  const prefix = permalink.split('/')[0];
+  const language = prefix === 'en' ? 'en' : prefix === 'ja' ? 'ja' : (configuredLanguage || (inferredEnglish ? 'en' : defaultLanguage));
+  articles.push({ key, title, description, visibleDescription, contentTokens, excerpt, summary: meta.summary || '', permalink, language, published: frontMatter.published ?? meta.published ?? '', updated: frontMatter.updated ?? meta.updated ?? '', category: frontMatter.category ?? meta.category ?? '', nextArticleKey: meta.next_article || '', translationKey: meta.translation || '', metaLanguage: language, pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
 }
 articles.sort((a, b) => (b.published || '').localeCompare(a.published || '') || a.title.localeCompare(b.title));
+
+// Explicit translation settings win. Otherwise match en--filename.md with filename.md.
+// A one-sided explicit link is also visible from the other article.
+const articleByKey = new Map(articles.map((article) => [article.key, article]));
+const articleByPermalink = new Map(articles.map((article) => [article.permalink, article]));
+const explicitTranslation = (article) => article.translationKey
+  ? (articleByKey.get(article.translationKey) || articleByPermalink.get(article.translationKey))
+  : null;
+const translationPairs = new Map();
+for (const article of articles) {
+  const target = explicitTranslation(article);
+  if (target && target !== article && target.language !== article.language) translationPairs.set(article.key, target);
+}
+for (const article of articles) {
+  if (translationPairs.has(article.key)) continue;
+  const reverse = articles.find((other) => translationPairs.get(other.key) === article && other.language !== article.language);
+  if (reverse) { translationPairs.set(article.key, reverse); continue; }
+  // An explicitly specified translation that cannot be resolved is not guessed.
+  if (article.translationKey) continue;
+  const partnerKey = article.key.startsWith('en--') ? article.key.slice(4) : `en--${article.key}`;
+  const partner = articleByKey.get(partnerKey);
+  if (partner && partner.language !== article.language && !partner.translationKey) translationPairs.set(article.key, partner);
+}
+
 
 const permalinkOwners = new Map();
 for (const item of [...articles, ...pages]) {
@@ -467,7 +501,7 @@ if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
   const recommendationSection = recommendations.length
     ? `<section class="recommendations" aria-labelledby="recommendations-title"><h2 class="related-section-title" id="recommendations-title">${esc(labels.recommendations)}</h2><ul class="recommendation-list">${recommendations.map((candidate) => `<li><div class="article-meta">${candidate.published ? `<time datetime="${esc(candidate.published)}">${esc(formatDate(candidate.published, candidate.language))}</time>` : ''}${candidate.category ? ` · ${esc(candidate.category)}` : ''}</div><h3><a href="${esc(withBase(basePath, `/${candidate.permalink}/`))}">${esc(candidate.title)}</a></h3><p>${esc(candidate.excerpt)}</p></li>`).join('')}</ul></section>`
     : '';
-  const translation = article.translationKey ? articles.find((candidate) => candidate.key === article.translationKey || candidate.permalink === article.translationKey) : null;
+  const translation = translationPairs.get(article.key) || null;
   const translationHtml = translation ? `<a class="translation-link" href="${esc(withBase(basePath, `/${translation.permalink}/`))}" lang="${esc(htmlLanguage(translation.language))}">${esc(labels.languageName)}</a>` : '';
   const jsonld = { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: article.title, description: article.description, datePublished: article.published || undefined, dateModified: article.updated || article.published || undefined, inLanguage: htmlLanguage(article.language), author: { '@type': 'Person', name: authorName }, mainEntityOfPage: canonical, url: canonical, publisher: { '@type': 'Organization', name: site.title } };
   // Inline the small share handler so it still works when a static host's
