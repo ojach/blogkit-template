@@ -69,15 +69,28 @@ if (input && list) {
       const item = document.createElement('li');
       item.className = 'article-card';
       item.dataset.card = '';
+      if (article.thumbnail) {
+        item.classList.add('has-thumbnail');
+        const image = document.createElement('img');
+        image.className = 'card-thumbnail';
+        image.src = article.thumbnail;
+        image.alt = '';
+        image.loading = 'lazy';
+        item.append(image);
+      }
+
+      const copy = document.createElement('div');
+      copy.className = 'card-copy';
       const meta = [article.displayDate || article.published, article.category].filter(Boolean).join(' · ');
-      addText(item, 'div', meta, 'article-meta');
+      addText(copy, 'div', meta, 'article-meta');
       const heading = document.createElement('h2');
       const link = document.createElement('a');
       link.href = article.url;
       link.textContent = article.title;
       heading.append(link);
-      item.append(heading);
-      addText(item, 'p', article.excerpt || article.description || '');
+      copy.append(heading);
+      addText(copy, 'p', article.excerpt || article.description || '');
+      item.append(copy);
       list.append(item);
     }
 
