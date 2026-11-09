@@ -176,6 +176,13 @@ function shell({ title, description, canonical, site, basePath, body, extra = ''
   const cssUrl = withBase(basePath, '/css/style.css');
   const highlightUrl = withBase(basePath, '/css/highlight.css');
   const rssUrl = withBase(basePath, '/rss.xml');
+  const thumbnailStyles = `<style>
+.article-card.has-thumbnail,.recommendation-list>li.has-thumbnail{display:flex;align-items:center;gap:16px}
+.article-card-copy{min-width:0;flex:1}
+.article-card-thumbnail{display:block;width:112px;height:84px;object-fit:cover;border-radius:8px;flex:0 0 112px}
+.recommendation-list .article-card-thumbnail{width:88px;height:66px;flex-basis:88px}
+@media(max-width:480px){.article-card.has-thumbnail,.recommendation-list>li.has-thumbnail{gap:12px}.article-card-thumbnail{width:88px;height:66px;flex-basis:88px}.recommendation-list .article-card-thumbnail{width:72px;height:54px;flex-basis:72px}}
+</style>`;
   const faviconUrl = site.icon ? imageUrl(basePath, site.icon) : '';
   const faviconTag = faviconUrl ? `<link rel="icon" href="${esc(faviconUrl)}">` : '';
   const pwaIconUrl = pwaIcon ? imageUrl(basePath, pwaIcon) : '';
@@ -183,7 +190,7 @@ function shell({ title, description, canonical, site, basePath, body, extra = ''
   const ogImageTags = ogImage
     ? `<meta property="og:image" content="${esc(ogImage)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(ogImage)}">`
     : '<meta name="twitter:card" content="summary">';
-  return `<!doctype html><html lang="${esc(htmlLanguage(lang))}" style="--brand:${brandColor}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(canonical)}">${faviconTag}${pwaIconTag}<meta property="og:type" content="${extra ? 'article' : 'website'}"><meta property="og:site_name" content="${esc(site.title)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(canonical)}">${ogImageTags}<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><link rel="stylesheet" href="${esc(cssUrl)}"><link rel="stylesheet" href="${esc(highlightUrl)}"><link rel="alternate" type="application/rss+xml" title="${esc(site.title)} RSS" href="${esc(rssUrl)}">${extra}${customHeadHtml}</head><body><header class="site-header"><div class="header-inner"><a class="brand" href="${esc(homeUrl)}">${esc(site.title)}</a><nav class="nav"><a href="${esc(homeUrl)}">${esc(labels.articles)}</a><a href="${esc(rssUrl)}">${esc(labels.rss)}</a>${languageHomeUrl ? `<a href="${esc(languageHomeUrl)}" lang="${lang === 'en' ? 'ja' : 'en'}">${esc(labels.languageName)}</a>` : ''}</nav></div></header>${body}${footerHtml}${customBodyHtml}</body></html>`;
+  return `<!doctype html><html lang="${esc(htmlLanguage(lang))}" style="--brand:${brandColor}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(canonical)}">${faviconTag}${pwaIconTag}<meta property="og:type" content="${extra ? 'article' : 'website'}"><meta property="og:site_name" content="${esc(site.title)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(canonical)}">${ogImageTags}<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><link rel="stylesheet" href="${esc(cssUrl)}"><link rel="stylesheet" href="${esc(highlightUrl)}"><link rel="alternate" type="application/rss+xml" title="${esc(site.title)} RSS" href="${esc(rssUrl)}">${extra}${thumbnailStyles}${customHeadHtml}</head><body><header class="site-header"><div class="header-inner"><a class="brand" href="${esc(homeUrl)}">${esc(site.title)}</a><nav class="nav"><a href="${esc(homeUrl)}">${esc(labels.articles)}</a><a href="${esc(rssUrl)}">${esc(labels.rss)}</a>${languageHomeUrl ? `<a href="${esc(languageHomeUrl)}" lang="${lang === 'en' ? 'ja' : 'en'}">${esc(labels.languageName)}</a>` : ''}</nav></div></header>${body}${footerHtml}${customBodyHtml}</body></html>`;
 }
 
 await fs.rm(out, { recursive: true, force: true });
@@ -380,6 +387,11 @@ for (const item of [...articles, ...pages]) {
   }
 }
 
+// Thumbnail is the article's representative image for lists, recommendations and social previews.
+const thumbnailCardImage = (article) => article.thumbnail
+  ? `<img class="article-card-thumbnail" src="${esc(optimizedImageUrl(basePath, article.thumbnail))}" alt="${esc(article.thumbnailAlt)}" loading="lazy">`
+  : '';
+
 const makeSearchIndex = (languageArticles) => languageArticles.map((article) => ({
   title: article.title,
   description: article.description,
@@ -388,6 +400,8 @@ const makeSearchIndex = (languageArticles) => languageArticles.map((article) => 
   published: article.published,
   displayDate: formatDate(article.published, article.language),
   category: article.category,
+  thumbnail: optimizedImageUrl(basePath, article.thumbnail),
+  thumbnail_alt: article.thumbnailAlt,
 }));
 const defaultLanguage = localeKey(site.language || 'ja');
 const defaultLabels = localeText(defaultLanguage);
@@ -401,7 +415,7 @@ for (const language of languages) {
   const searchFilename = language === defaultLanguage ? 'search-index.json' : `search-index.${language}.json`;
   const searchIndexUrl = withBase(basePath, `/${searchFilename}`);
   const pageCount = Math.max(1, Math.ceil(languageArticles.length / articlesPerPage));
-  const cardsFor = (page) => languageArticles.slice((page - 1) * articlesPerPage, page * articlesPerPage).map((article) => `<li class="article-card" data-card><div class="article-meta">${article.published ? `<time datetime="${esc(article.published)}">${esc(formatDate(article.published, article.language))}</time>` : `<span>${esc(labels.noDate)}</span>`}${article.category ? ` · ${esc(article.category)}` : ''}</div><h2><a href="${esc(withBase(basePath, `/${article.permalink}/`))}">${esc(article.title)}</a></h2><p>${esc(article.excerpt)}</p></li>`).join('');
+  const cardsFor = (page) => languageArticles.slice((page - 1) * articlesPerPage, page * articlesPerPage).map((article) => `<li class="article-card${article.thumbnail ? ' has-thumbnail' : ''}" data-card>${thumbnailCardImage(article)}<div class="article-card-copy"><div class="article-meta">${article.published ? `<time datetime="${esc(article.published)}">${esc(formatDate(article.published, article.language))}</time>` : `<span>${esc(labels.noDate)}</span>`}${article.category ? ` · ${esc(article.category)}` : ''}</div><h2><a href="${esc(withBase(basePath, `/${article.permalink}/`))}">${esc(article.title)}</a></h2><p>${esc(article.excerpt)}</p></div></li>`).join('');
   const languageHomeUrl = languages.length > 1
     ? withBase(basePath, languageHomePath(language === 'en' ? 'ja' : 'en'))
     : '';
@@ -458,7 +472,9 @@ for (const article of articles) {
   const ogpFilename = `${slug(article.key)}.png`;
   const ogpPath = path.join(out, 'ogp', ogpFilename);
   const localizedSite = { ...site, author: authorName };
-  await generateOgp({ root, destination: ogpPath, title: article.title, site: localizedSite, brandColor });
+   if (!article.thumbnail) {
+     await generateOgp({ root, destination: ogpPath, title: article.title, site: localizedSite, brandColor });
+   }
   const generatedPwaIcon = `pwa-icons/${slug(article.key)}.png`;
 
 if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
@@ -470,7 +486,10 @@ if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
     brandColor,
   });
 }
-  const ogImage = absoluteUrl(`/ogp/${ogpFilename}`);
+  const thumbnailOgUrl = optimizedImageUrl(basePath, article.thumbnail);
+  const ogImage = thumbnailOgUrl
+    ? new URL(thumbnailOgUrl, siteUrl.origin).href
+    : absoluteUrl(`/ogp/${ogpFilename}`);
   const articleIndex = articles.indexOf(article);
   const explicitNext = article.nextArticleKey
     ? articles.find((candidate) => candidate !== article && (candidate.key === article.nextArticleKey || candidate.permalink === article.nextArticleKey))
@@ -499,7 +518,7 @@ if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
     : '';
   const articleActions = `<div class="article-actions" aria-label="${esc(labels.articleActions)}"><button type="button" class="icon-button" data-copy-link data-share-url="${esc(canonical)}" data-copy-failed="${esc(labels.copyFailed)}" data-link-copying="${esc(labels.linkCopying)}" data-link-copied="${esc(labels.linkCopied)}" aria-label="${esc(labels.copyLink)}" title="${esc(labels.copyLink)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button><button type="button" class="icon-button" data-share data-share-title="${esc(article.title)}" data-share-url="${esc(canonical)}" data-share-label="${esc(labels.sharing)}" data-copy-failed="${esc(labels.shareFailed)}" data-share-success="${esc(labels.shared)}" data-share-cancelled="${esc(labels.shareCancelled)}" data-url-copied="${esc(labels.urlCopied)}" aria-label="${esc(labels.shareArticle)}" title="${esc(labels.shareArticle)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/></svg></button><span class="share-status" data-share-status role="status" aria-live="polite"></span></div>`;
   const recommendationSection = recommendations.length
-    ? `<section class="recommendations" aria-labelledby="recommendations-title"><h2 class="related-section-title" id="recommendations-title">${esc(labels.recommendations)}</h2><ul class="recommendation-list">${recommendations.map((candidate) => `<li><div class="article-meta">${candidate.published ? `<time datetime="${esc(candidate.published)}">${esc(formatDate(candidate.published, candidate.language))}</time>` : ''}${candidate.category ? ` · ${esc(candidate.category)}` : ''}</div><h3><a href="${esc(withBase(basePath, `/${candidate.permalink}/`))}">${esc(candidate.title)}</a></h3><p>${esc(candidate.excerpt)}</p></li>`).join('')}</ul></section>`
+    ? `<section class="recommendations" aria-labelledby="recommendations-title"><h2 class="related-section-title" id="recommendations-title">${esc(labels.recommendations)}</h2><ul class="recommendation-list">${recommendations.map((candidate) => `<li class="${candidate.thumbnail ? 'has-thumbnail' : ''}">${thumbnailCardImage(candidate)}<div class="article-card-copy"><div class="article-meta">${candidate.published ? `<time datetime="${esc(candidate.published)}">${esc(formatDate(candidate.published, candidate.language))}</time>` : ''}${candidate.category ? ` · ${esc(candidate.category)}` : ''}</div><h3><a href="${esc(withBase(basePath, `/${candidate.permalink}/`))}">${esc(candidate.title)}</a></h3><p>${esc(candidate.excerpt)}</p></div></li>`).join('')}</ul></section>`
     : '';
   const translation = translationPairs.get(article.key) || null;
   const translationHtml = translation ? `<a class="translation-link" href="${esc(withBase(basePath, `/${translation.permalink}/`))}" lang="${esc(htmlLanguage(translation.language))}">${esc(labels.languageName)}</a>` : '';
