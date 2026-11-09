@@ -401,7 +401,6 @@ const makeSearchIndex = (languageArticles) => languageArticles.map((article) => 
   displayDate: formatDate(article.published, article.language),
   category: article.category,
   thumbnail: optimizedImageUrl(basePath, article.thumbnail),
-  thumbnail_alt: article.thumbnailAlt,
 }));
 const defaultLanguage = localeKey(site.language || 'ja');
 const defaultLabels = localeText(defaultLanguage);
