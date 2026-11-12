@@ -58,7 +58,7 @@ function indentationUnit(code, language) {
   return widths.reduce((unit, width) => greatestCommonDivisor(unit, width), 0) || 2;
 }
 
-async function renderCodeBlock({ text, lang, labels }) {
+async function renderCodeBlock({ text, lang, labels, theme }) {
   const { language, label } = parseCodeInfo(lang);
   const diff = language === 'diff';
   const indentSize = indentationUnit(text, language);
@@ -79,11 +79,11 @@ async function renderCodeBlock({ text, lang, labels }) {
   }];
 
   try {
-    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: 'dark-plus', transformers });
+    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme, transformers });
   } catch {
     // Unknown language names remain readable as plain text instead of failing the whole build.
     highlighterLanguage = 'text';
-    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: 'dark-plus', transformers });
+    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme, transformers });
   }
 
   const copyData = Buffer.from(String(text), 'utf8').toString('base64');
@@ -197,6 +197,7 @@ await fs.rm(out, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });
 
 const [site, metadata, pageMetadata] = await Promise.all([readJson('site.json'), readJson('articles.json'), readJson('pages.json')]);
+const shikiTheme = String(site.shiki_theme || 'dark-plus').trim() || 'dark-plus';
 const shareScript = await fs.readFile(path.join(root, 'public/js/share.js'), 'utf8');
 const homeTemplate = await fs.readFile(path.join(root, 'templates/index.html'), 'utf8');
 const pageTemplate = await fs.readFile(path.join(root, 'templates/page.html'), 'utf8');
@@ -383,7 +384,7 @@ for (const item of [...articles, ...pages]) {
   item.labels = localeText(item.language);
   for (const token of collectCodeTokens(item.tokens)) {
     const key = JSON.stringify([item.language, token.text, token.lang || '']);
-    if (!codeBlockHtml.has(key)) codeBlockHtml.set(key, await renderCodeBlock({ ...token, labels: item.labels }));
+    if (!codeBlockHtml.has(key)) codeBlockHtml.set(key, await renderCodeBlock({ ...token, labels: item.labels, theme: shikiTheme }));
   }
 }
 
