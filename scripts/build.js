@@ -91,7 +91,7 @@ async function renderCodeBlock({ text, lang, labels, theme }) {
   }
 
   const copyData = Buffer.from(String(text), 'utf8').toString('base64');
-  return `<div class="code-block${diff ? ' code-block--diff' : ''}" style="--indent-size:${indentSize}ch"><div class="code-header"><span class="code-language">${codeEscape(title || (localTheme ? localTheme : label))}</span><button class="code-copy" type="button" data-copy-code="${copyData}" data-copy-success="${codeEscape(labels.copyCodeSuccess)}" data-copy-failure="${codeEscape(labels.copyCodeFailure)}" aria-label="${codeEscape(labels.copyCode)}" title="${codeEscape(labels.copyCode)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><span class="code-copy-status" data-code-copy-status role="status" aria-live="polite"></span></div>${highlighted}</div>\n`;
+  return `<div class="code-block${diff ? ' code-block--diff' : ''}" style="--indent-size:${indentSize}ch"><div class="code-header"><span class="code-language">${codeEscape(title || localTheme || label)}</span><button class="code-copy" type="button" data-copy-code="${copyData}" data-copy-success="${codeEscape(labels.copyCodeSuccess)}" data-copy-failure="${codeEscape(labels.copyCodeFailure)}" aria-label="${codeEscape(labels.copyCode)}" title="${codeEscape(labels.copyCode)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><span class="code-copy-status" data-code-copy-status role="status" aria-live="polite"></span></div>${highlighted}</div>\n`;
 }
 
 function collectCodeTokens(tokens, result = []) {
@@ -235,9 +235,7 @@ const adHtmlFor = (number) => {
 };
 const codeBlockHtml = new Map();
 const codeKey = (language, token) => JSON.stringify([language, token.text, token.lang || '']);
-const cachedCode = (language, token) => codeBlockHtml.get(codeKey(language, token))
-  || `<pre><code>${codeEscape(token.text)}</code></pre>\n`;
-
+const cachedCode = (language, token) => codeBlockHtml.get(codeKey(language, token)) || `<pre><code>${codeEscape(token.text)}</code></pre>\n`;
 let activeCodeLanguage = localeKey(site.language || 'ja');
 marked.use({
   extensions: [{
@@ -248,12 +246,11 @@ marked.use({
       const match = /^:::code-grid[ \t]*\r?\n([\s\S]*?)^:::[ \t]*(?:\r?\n|$)/m.exec(source);
       if (!match) return;
       const tokens = marked.lexer(match[1]).filter((token) => token.type !== 'space');
-      // Keep the syntax strict: only fenced code blocks may appear inside the grid.
       if (!tokens.length || tokens.some((token) => token.type !== 'code')) return;
       return { type: 'ojappCodeGrid', raw: match[0], tokens };
     },
     renderer(token) {
-      return `<div class="code-grid">${token.tokens.map((code) => cachedCode(activeCodeLanguage, code)).join('')}</div>\n`;
+      return `<div class=\"code-grid\">${token.tokens.map((code) => cachedCode(activeCodeLanguage, code)).join('')}</div>\n`;
     },
   }, {
     name: 'ojappAd',
@@ -290,7 +287,7 @@ marked.use({
       };
     },
     renderer(token) {
-      const key = codeKey(activeCodeLanguage, token);
+      const key = JSON.stringify([activeCodeLanguage, token.text, token.lang || '']);
       return codeBlockHtml.get(key)
         || `<pre><code>${codeEscape(token.text)}</code></pre>\n`;
     },
