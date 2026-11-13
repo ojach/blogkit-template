@@ -25,9 +25,12 @@ const codeLanguageLabels = {
 function parseCodeInfo(info) {
   const raw = String(info || '').trim();
   const language = raw.split(/\s+/, 1)[0].toLowerCase();
+  const options = Object.fromEntries([...raw.matchAll(/(?:^|\s)(theme|title)=([^\s]+)/gi)].map((match) => [match[1].toLowerCase(), match[2]]));
   return {
     language,
     label: codeLanguageLabels[language] || (language ? language : 'Text'),
+    theme: options.theme || '',
+    title: options.title || '',
   };
 }
 
@@ -59,7 +62,8 @@ function indentationUnit(code, language) {
 }
 
 async function renderCodeBlock({ text, lang, labels, theme }) {
-  const { language, label } = parseCodeInfo(lang);
+  const { language, label, theme: localTheme, title } = parseCodeInfo(lang);
+  const selectedTheme = localTheme || theme;
   const diff = language === 'diff';
   const indentSize = indentationUnit(text, language);
   const sourceLines = String(text).replace(/\r\n?/g, '\n').split('\n');
@@ -79,15 +83,15 @@ async function renderCodeBlock({ text, lang, labels, theme }) {
   }];
 
   try {
-    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme, transformers });
+    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: selectedTheme, transformers });
   } catch {
     // Unknown language names remain readable as plain text instead of failing the whole build.
     highlighterLanguage = 'text';
-    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme, transformers });
+    highlighted = await codeToHtml(String(text), { lang: highlighterLanguage, theme: selectedTheme, transformers });
   }
 
   const copyData = Buffer.from(String(text), 'utf8').toString('base64');
-  return `<div class="code-block${diff ? ' code-block--diff' : ''}" style="--indent-size:${indentSize}ch"><div class="code-header"><span class="code-language">${codeEscape(label)}</span><button class="code-copy" type="button" data-copy-code="${copyData}" data-copy-success="${codeEscape(labels.copyCodeSuccess)}" data-copy-failure="${codeEscape(labels.copyCodeFailure)}" aria-label="${codeEscape(labels.copyCode)}" title="${codeEscape(labels.copyCode)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><span class="code-copy-status" data-code-copy-status role="status" aria-live="polite"></span></div>${highlighted}</div>\n`;
+  return `<div class="code-block${diff ? ' code-block--diff' : ''}" style="--indent-size:${indentSize}ch"><div class="code-header"><span class="code-language">${codeEscape(title || (localTheme ? localTheme : label))}</span><button class="code-copy" type="button" data-copy-code="${copyData}" data-copy-success="${codeEscape(labels.copyCodeSuccess)}" data-copy-failure="${codeEscape(labels.copyCodeFailure)}" aria-label="${codeEscape(labels.copyCode)}" title="${codeEscape(labels.copyCode)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><span class="code-copy-status" data-code-copy-status role="status" aria-live="polite"></span></div>${highlighted}</div>\n`;
 }
 
 function collectCodeTokens(tokens, result = []) {
@@ -230,9 +234,28 @@ const adHtmlFor = (number) => {
     : '';
 };
 const codeBlockHtml = new Map();
+const codeKey = (language, token) => JSON.stringify([language, token.text, token.lang || '']);
+const cachedCode = (language, token) => codeBlockHtml.get(codeKey(language, token))
+  || `<pre><code>${codeEscape(token.text)}</code></pre>\n`;
+
 let activeCodeLanguage = localeKey(site.language || 'ja');
 marked.use({
   extensions: [{
+    name: 'ojappCodeGrid',
+    level: 'block',
+    start(source) { return /^:::code-grid[ \t]*$/m.exec(source)?.index; },
+    tokenizer(source) {
+      const match = /^:::code-grid[ \t]*\r?\n([\s\S]*?)^:::[ \t]*(?:\r?\n|$)/m.exec(source);
+      if (!match) return;
+      const tokens = marked.lexer(match[1]).filter((token) => token.type !== 'space');
+      // Keep the syntax strict: only fenced code blocks may appear inside the grid.
+      if (!tokens.length || tokens.some((token) => token.type !== 'code')) return;
+      return { type: 'ojappCodeGrid', raw: match[0], tokens };
+    },
+    renderer(token) {
+      return `<div class="code-grid">${token.tokens.map((code) => cachedCode(activeCodeLanguage, code)).join('')}</div>\n`;
+    },
+  }, {
     name: 'ojappAd',
     level: 'block',
     start(source) {
@@ -267,7 +290,7 @@ marked.use({
       };
     },
     renderer(token) {
-      const key = JSON.stringify([activeCodeLanguage, token.text, token.lang || '']);
+      const key = codeKey(activeCodeLanguage, token);
       return codeBlockHtml.get(key)
         || `<pre><code>${codeEscape(token.text)}</code></pre>\n`;
     },
@@ -382,8 +405,8 @@ for (const item of [...articles, ...pages]) {
 for (const item of [...articles, ...pages]) {
   item.language = item.language || localeKey(item.metaLanguage || site.language || 'ja');
   item.labels = localeText(item.language);
-  for (const token of collectCodeTokens(item.tokens)) {
-    const key = JSON.stringify([item.language, token.text, token.lang || '']);
+  for (const token of collectCodeTokens(item.tokens || item.contentTokens)) {
+    const key = codeKey(item.language, token);
     if (!codeBlockHtml.has(key)) codeBlockHtml.set(key, await renderCodeBlock({ ...token, labels: item.labels, theme: shikiTheme }));
   }
 }
@@ -450,7 +473,7 @@ for (const article of articles) {
   const usedIds = new Map();
   const articleRenderer = new marked.Renderer();
   articleRenderer.image = renderer.image;
-  articleRenderer.code = ({ text, lang }) => codeBlockHtml.get(JSON.stringify([article.language, text, lang || ''])) || `<pre><code>${codeEscape(text)}</code></pre>\n`;
+  articleRenderer.code = (token) => cachedCode(article.language, token);
   articleRenderer.heading = ({ tokens, depth }) => {
     const rendered = articleRenderer.parser.parseInline(tokens);
     const plain = decodeHtmlCode(rendered.replace(/<[^>]*>/g, ''));
@@ -553,6 +576,7 @@ for (const page of pages) {
   activeCodeLanguage = page.language;
   const pageRenderer = new marked.Renderer();
   pageRenderer.image = renderer.image;
+  pageRenderer.code = (token) => cachedCode(page.language, token);
   const content = marked.parser(page.contentTokens, { renderer: pageRenderer, extensions: marked.defaults.extensions });
   const body = fillTemplate(pageTemplate, {
     pageTitle: esc(page.title),
