@@ -8,6 +8,16 @@ if (input && list) {
   let currentPage = 1;
   const originalHtml = list.innerHTML;
   let pagination = null;
+  const originalPagination = list.nextElementSibling?.matches('.pagination')
+    ? list.nextElementSibling
+    : null;
+  const originalPaginationDisplay = originalPagination?.style.display || '';
+
+  const setSearchMode = (active) => {
+    if (originalPagination) {
+      originalPagination.style.display = active ? 'none' : originalPaginationDisplay;
+    }
+  };
 
   const addText = (parent, tag, text, className) => {
     const element = document.createElement(tag);
@@ -108,11 +118,13 @@ if (input && list) {
   input.addEventListener('input', () => {
     const query = input.value.trim().toLocaleLowerCase();
     if (!query) {
+      setSearchMode(false);
       removePagination();
       list.innerHTML = originalHtml;
       return;
     }
 
+    setSearchMode(true);
     matchingArticles = articles.filter((article) =>
       [article.title, article.description, article.category]
         .filter(Boolean)
