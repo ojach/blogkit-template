@@ -8,15 +8,16 @@ if (input && list) {
   let currentPage = 1;
   const originalHtml = list.innerHTML;
   let pagination = null;
-  const originalPagination = list.nextElementSibling?.matches('.pagination')
-    ? list.nextElementSibling
-    : null;
-  const originalPaginationDisplay = originalPagination?.style.display || '';
+  // Keep the build-generated pagination in its original position.
+  const originalPagination = [...list.parentElement.querySelectorAll('.pagination')]
+    .find((nav) => !list.contains(nav)) || null;
+  const paginationAnchor = originalPagination ? document.createComment('original pagination') : null;
+  if (originalPagination) originalPagination.before(paginationAnchor);
 
   const setSearchMode = (active) => {
-    if (originalPagination) {
-      originalPagination.style.display = active ? 'none' : originalPaginationDisplay;
-    }
+    if (!originalPagination) return;
+    if (active && originalPagination.isConnected) originalPagination.remove();
+    if (!active && !originalPagination.isConnected) paginationAnchor.after(originalPagination);
   };
 
   const addText = (parent, tag, text, className) => {
@@ -41,34 +42,38 @@ if (input && list) {
     pagination.className = 'pagination';
     pagination.setAttribute('aria-label', 'Search result pages');
 
-    const previous = document.createElement('button');
-    previous.type = 'button';
+    // Use the same link markup as build.js so existing pagination CSS applies.
+    const previous = document.createElement('a');
+    previous.href = '#';
     previous.textContent = '← 前の15件';
-    previous.disabled = currentPage === 1;
-    previous.addEventListener('click', () => {
-      if (currentPage > 1) {
+    if (currentPage > 1) {
+      previous.addEventListener('click', (event) => {
+        event.preventDefault();
         currentPage -= 1;
         renderResults();
-      }
-    });
+      });
+    }
 
     const status = document.createElement('span');
     status.setAttribute('aria-live', 'polite');
     status.textContent = `${currentPage} / ${pageCount}`;
 
-    const next = document.createElement('button');
-    next.type = 'button';
+    const next = document.createElement('a');
+    next.href = '#';
     next.textContent = '次の15件 →';
-    next.disabled = currentPage === pageCount;
-    next.addEventListener('click', () => {
-      if (currentPage < pageCount) {
+    if (currentPage < pageCount) {
+      next.addEventListener('click', (event) => {
+        event.preventDefault();
         currentPage += 1;
         renderResults();
-      }
-    });
+      });
+    }
 
-    pagination.append(previous, status, next);
-    list.after(pagination);
+    if (currentPage > 1) pagination.append(previous);
+    pagination.append(status);
+    if (currentPage < pageCount) pagination.append(next);
+    if (paginationAnchor) paginationAnchor.before(pagination);
+    else list.after(pagination);
   };
 
   const renderResults = () => {
@@ -118,8 +123,8 @@ if (input && list) {
   input.addEventListener('input', () => {
     const query = input.value.trim().toLocaleLowerCase();
     if (!query) {
-      setSearchMode(false);
       removePagination();
+      setSearchMode(false);
       list.innerHTML = originalHtml;
       return;
     }
