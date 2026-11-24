@@ -192,6 +192,13 @@ function shell({ title, description, canonical, site, basePath, body, extra = ''
 .prose .code-grid>.code-block{min-width:0;margin:0}
 .prose .code-grid .shiki{max-width:100%;overflow-x:auto}
 </style>`;
+  const footerLinksStyles = `<style>
+.footer-external-links{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 16px}
+.footer-external-links a{color:var(--muted);font-size:.9rem;font-weight:550}
+.footer-external-links a:hover{color:var(--brand)}
+.footer-pages:has(+ .footer-external-links){padding-bottom:0;margin-bottom:16px}
+@media(max-width:760px){.footer-external-links{gap:8px 18px}}
+</style>`;
   const faviconUrl = site.icon ? imageUrl(basePath, site.icon) : '';
   const faviconTag = faviconUrl ? `<link rel="icon" href="${esc(faviconUrl)}">` : '';
   const pwaIconUrl = pwaIcon ? imageUrl(basePath, pwaIcon) : '';
@@ -199,13 +206,21 @@ function shell({ title, description, canonical, site, basePath, body, extra = ''
   const ogImageTags = ogImage
     ? `<meta property="og:image" content="${esc(ogImage)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(ogImage)}">`
     : '<meta name="twitter:card" content="summary">';
-  return `<!doctype html><html lang="${esc(htmlLanguage(lang))}" style="--brand:${brandColor}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(canonical)}">${faviconTag}${pwaIconTag}<meta property="og:type" content="${extra ? 'article' : 'website'}"><meta property="og:site_name" content="${esc(site.title)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(canonical)}">${ogImageTags}<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><link rel="stylesheet" href="${esc(cssUrl)}"><link rel="stylesheet" href="${esc(highlightUrl)}"><link rel="alternate" type="application/rss+xml" title="${esc(site.title)} RSS" href="${esc(rssUrl)}">${extra}${thumbnailStyles}${customHeadHtml}</head><body><header class="site-header"><div class="header-inner"><a class="brand" href="${esc(homeUrl)}">${esc(site.title)}</a><nav class="nav"><a href="${esc(homeUrl)}">${esc(labels.articles)}</a><a href="${esc(rssUrl)}">${esc(labels.rss)}</a>${languageHomeUrl ? `<a href="${esc(languageHomeUrl)}" lang="${lang === 'en' ? 'ja' : 'en'}">${esc(labels.languageName)}</a>` : ''}</nav></div></header>${body}${footerHtml}${customBodyHtml}</body></html>`;
+  return `<!doctype html><html lang="${esc(htmlLanguage(lang))}" style="--brand:${brandColor}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(canonical)}">${faviconTag}${pwaIconTag}<meta property="og:type" content="${extra ? 'article' : 'website'}"><meta property="og:site_name" content="${esc(site.title)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(canonical)}">${ogImageTags}<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><link rel="stylesheet" href="${esc(cssUrl)}"><link rel="stylesheet" href="${esc(highlightUrl)}"><link rel="alternate" type="application/rss+xml" title="${esc(site.title)} RSS" href="${esc(rssUrl)}">${extra}${thumbnailStyles}${footerLinksStyles}${customHeadHtml}</head><body><header class="site-header"><div class="header-inner"><a class="brand" href="${esc(homeUrl)}">${esc(site.title)}</a><nav class="nav"><a href="${esc(homeUrl)}">${esc(labels.articles)}</a><a href="${esc(rssUrl)}">${esc(labels.rss)}</a>${languageHomeUrl ? `<a href="${esc(languageHomeUrl)}" lang="${lang === 'en' ? 'ja' : 'en'}">${esc(labels.languageName)}</a>` : ''}</nav></div></header>${body}${footerHtml}${customBodyHtml}</body></html>`;
 }
 
 await fs.rm(out, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });
 
 const [site, metadata, pageMetadata] = await Promise.all([readJson('site.json'), readJson('articles.json'), readJson('pages.json')]);
+// Optional hub definitions. Existing sites work without hubs.json.
+let hubs = {};
+try {
+  hubs = await readJson('hubs.json');
+  if (!hubs || typeof hubs !== 'object' || Array.isArray(hubs)) throw new Error('hubs.json must be a JSON object');
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
 const shikiTheme = String(site.shiki_theme || 'dark-plus').trim() || 'dark-plus';
 const shareScript = await fs.readFile(path.join(root, 'public/js/share.js'), 'utf8');
 const homeTemplate = await fs.readFile(path.join(root, 'templates/index.html'), 'utf8');
@@ -338,7 +353,16 @@ const footerHtmlFor = (language) => {
   const links = pages.filter((page) => page.language === language && page.showInFooter)
     .map((page) => `<a href="${esc(withBase(basePath, `/${page.permalink}/`))}">${esc(page.footerLabel)}</a>`).join('');
   const pageNav = links ? `<nav class="footer-pages" aria-label="${esc(labels.sitePages)}">${links}</nav>` : '';
-  return `<footer class="footer"><div class="footer-inner"><a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a>${pageNav}<p class="footer-tagline">Built for the OJapp Blog Kit.</p></div></footer>`;
+  const externalLinks = (Array.isArray(site.footer_links) ? site.footer_links : []).map((item) => {
+    if (!item || !item.label || !item.url) return '';
+    try {
+      const url = new URL(String(item.url));
+      if (!['https:', 'http:'].includes(url.protocol)) return '';
+      return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(item.label)}</a>`;
+    } catch { return ''; }
+  }).filter(Boolean).join('');
+  const externalNav = externalLinks ? `<nav class="footer-external-links" aria-label="${esc(labels.externalLinks)}">${externalLinks}</nav>` : '';
+  return `<footer class="footer"><div class="footer-inner"><a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a>${pageNav}${externalNav}<p class="footer-tagline">Built for the OJapp Blog Kit.</p></div></footer>`;
 };
 
 const files = (await fs.readdir(path.join(root, 'content'))).filter((file) => file.endsWith('.md'));
@@ -379,7 +403,7 @@ for (const file of files) {
   // URL language prefix is authoritative; otherwise honor existing JSON metadata.
   const prefix = permalink.split('/')[0];
   const language = prefix === 'en' ? 'en' : prefix === 'ja' ? 'ja' : (configuredLanguage || (inferredEnglish ? 'en' : defaultLanguage));
-  articles.push({ key, title, description, visibleDescription, contentTokens, excerpt, summary: meta.summary || '', permalink, language, published: frontMatter.published ?? meta.published ?? '', updated: frontMatter.updated ?? meta.updated ?? '', category: frontMatter.category ?? meta.category ?? '', nextArticleKey: meta.next_article || '', translationKey: meta.translation || '', metaLanguage: language, pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
+  articles.push({ key, title, description, visibleDescription, contentTokens, excerpt, summary: meta.summary || '', permalink, language, published: frontMatter.published ?? meta.published ?? '', updated: frontMatter.updated ?? meta.updated ?? '', category: frontMatter.category ?? meta.category ?? '', nextArticleKey: meta.next_article || '', hubKey: meta.hub || '', translationKey: meta.translation || '', metaLanguage: language, pwaIcon: meta.pwa_icon || '', thumbnail: meta.thumbnail || '', thumbnailAlt: meta.thumbnail_alt || title, showThumbnail: meta.show_thumbnail !== false, tokens, firstHeading });
 }
 articles.sort((a, b) => (b.published || '').localeCompare(a.published || '') || a.title.localeCompare(b.title));
 
@@ -457,9 +481,9 @@ for (const language of languages) {
     : '';
   for (let page = 1; page <= pageCount; page += 1) {
   const pageRoute = page === 1 ? route : `${route.replace(/\/$/, '')}/page/${page}/`;
-  const previous = page > 1 ? `<a href="${esc(withBase(basePath, page === 2 ? route : `${route.replace(/\/$/, '')}/page/${page - 1}/`))}">← 前の15件</a>` : '';
-  const next = page < pageCount ? `<a href="${esc(withBase(basePath, `${route.replace(/\/$/, '')}/page/${page + 1}/`))}">次の15件 →</a>` : '';
-  const pagination = pageCount > 1 ? `<nav class="pagination" aria-label="記事一覧ページ">${previous}<span>${page} / ${pageCount}</span>${next}</nav>` : '';
+  const previous = page > 1 ? `<a href="${esc(withBase(basePath, page === 2 ? route : `${route.replace(/\/$/, '')}/page/${page - 1}/`))}">${esc(labels.previousPage)}</a>` : '';
+  const next = page < pageCount ? `<a href="${esc(withBase(basePath, `${route.replace(/\/$/, '')}/page/${page + 1}/`))}">${esc(labels.nextPage)}</a>` : '';
+  const pagination = pageCount > 1 ? `<nav class="pagination" aria-label="${esc(labels.pagination)}">${previous}<span>${page} / ${pageCount}</span>${next}</nav>` : '';
   const home = fillTemplate(homeTemplate, {
     introTitle: esc(labels.introTitle),
     introDescription: esc(labels.introDescription),
@@ -470,7 +494,7 @@ for (const language of languages) {
     articleCards: cardsFor(page) || `<li class="empty">${esc(labels.noArticles)}</li>`,
     pagination,
     sideDescription: esc(labels.sideDescription),
-    searchScriptUrl: esc(withBase(basePath, '/js/search.js')),
+    searchScriptUrl: esc(withBase(basePath, '/js/search.js?v=1')),
   });
   const destination = path.join(out, pageRoute.replace(/^\/+|\/+$/g, ''), 'index.html');
   await fs.mkdir(path.dirname(destination), { recursive: true });
@@ -534,9 +558,18 @@ if (site.features?.article_pwa_icons === true && !article.pwaIcon) {
   const fallbackNext = sameLanguageArticles[sameLanguageArticles.indexOf(article) + 1]
     || sameLanguageArticles.find((candidate) => candidate !== article);
   const nextArticle = explicitNext || fallbackNext;
-  const summaryNextHtml = nextArticle
-    ? `<p class="article-summary-next"><span>${esc(labels.next)}</span><a href="${esc(withBase(basePath, `/${nextArticle.permalink}/`))}">${esc(nextArticle.title)}</a></p>`
-    : '';
+  // A valid hub takes precedence inside the summary; the end-of-article Next remains unchanged.
+  const hub = article.hubKey ? hubs[article.hubKey] : null;
+  const hubArticle = hub && typeof hub === 'object'
+    ? articles.find((candidate) => candidate.key === hub.article || candidate.permalink === hub.article)
+    : null;
+  const hubTitle = hub && typeof hub.title === 'string' ? hub.title.trim() : '';
+  const validHub = hubArticle && hubArticle.language === article.language && hubTitle;
+  const summaryNextHtml = validHub
+    ? `<p class="article-summary-next"><span>${esc(labels.hub)}</span><a href="${esc(withBase(basePath, `/${hubArticle.permalink}/`))}">${esc(hubTitle)}</a></p>`
+    : nextArticle
+      ? `<p class="article-summary-next"><span>${esc(labels.next)}</span><a href="${esc(withBase(basePath, `/${nextArticle.permalink}/`))}">${esc(nextArticle.title)}</a></p>`
+      : '';
   const summaryHtml = site.features?.article_summary !== false && article.summary
     ? `<details class="article-summary"><summary>${esc(labels.summary)}</summary><div class="article-summary-content">${marked.parse(article.summary)}${summaryNextHtml}</div></details>`
     : '';
