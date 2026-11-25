@@ -225,7 +225,14 @@ const shikiTheme = String(site.shiki_theme || 'dark-plus').trim() || 'dark-plus'
 const shareScript = await fs.readFile(path.join(root, 'public/js/share.js'), 'utf8');
 const homeTemplate = await fs.readFile(path.join(root, 'templates/index.html'), 'utf8');
 const pageTemplate = await fs.readFile(path.join(root, 'templates/page.html'), 'utf8');
-const customHeadHtml = await fs.readFile(path.join(root, 'templates/custom-head.html'), 'utf8');
+const allPagesStyles = `<style>
+.footer-brand-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 18px}
+.footer-all-pages-link{font-size:.85em;font-weight:400}
+.all-pages-list{list-style:none;padding:0;margin:12px 0 28px}
+.all-pages-list li{padding:5px 0;overflow-wrap:anywhere}
+.all-pages-section{margin-top:28px}
+</style>`;
+const customHeadHtml = (await fs.readFile(path.join(root, 'templates/custom-head.html'), 'utf8')) + allPagesStyles;
 const customBodyHtml = await fs.readFile(path.join(root, 'templates/custom-body-end.html'), 'utf8');
 const siteUrl = new URL(site.url);
 const basePath = siteUrl.pathname.replace(/\/$/, '');
@@ -362,7 +369,7 @@ const footerHtmlFor = (language) => {
     } catch { return ''; }
   }).filter(Boolean).join('');
   const externalNav = externalLinks ? `<nav class="footer-external-links" aria-label="${esc(labels.externalLinks)}">${externalLinks}</nav>` : '';
-  return `<footer class="footer"><div class="footer-inner"><a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a>${pageNav}${externalNav}<p class="footer-tagline">Built for the OJapp Blog Kit.</p></div></footer>`;
+  return `<footer class="footer"><div class="footer-inner"><div class="footer-brand-row"><a class="footer-brand" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/' : `/${language}/`))}">${esc(site.title)}</a><a class="footer-all-pages-link" href="${esc(withBase(basePath, language === localeKey(site.language || 'ja') ? '/all-pages/' : `/${language}/all-pages/`))}">${language === 'en' ? 'All Pages' : 'ページ一覧'}</a></div>${pageNav}${externalNav}<p class="footer-tagline">Built for the OJapp Blog Kit.</p></div></footer>`;
 };
 
 const files = (await fs.readdir(path.join(root, 'content'))).filter((file) => file.endsWith('.md'));
@@ -466,6 +473,24 @@ const makeSearchIndex = (languageArticles) => languageArticles.map((article) => 
 const defaultLanguage = localeKey(site.language || 'ja');
 const defaultLabels = localeText(defaultLanguage);
 const languages = [...new Set(articles.map((article) => article.language))];
+// Generate a localized HTML sitemap from actual Markdown articles and pages.
+const allPagesLanguages = [...new Set([defaultLanguage, ...languages, ...pages.map((page) => page.language)])];
+for (const language of allPagesLanguages) {
+  const reserved = language === defaultLanguage ? 'all-pages' : `${language}/all-pages`;
+  if (permalinkOwners.has(reserved)) throw new Error(`Reserved permalink "${reserved}" conflicts with the generated page list.`);
+  const english = language === 'en';
+  const route = language === defaultLanguage ? '/all-pages/' : `/${language}/all-pages/`;
+  const title = english ? 'All Pages' : 'ページ一覧';
+  const description = english ? `All articles and pages on ${site.title}.` : `${site.title}の全記事・固定ページ一覧。`;
+  const languagePages = pages.filter((page) => page.language === language);
+  const languageArticles = articles.filter((article) => article.language === language);
+  const listHtml = (items) => `<ul class="all-pages-list">${items.map((item) => `<li><a href="${esc(withBase(basePath, `/${item.permalink}/`))}">${esc(item.title)}</a></li>`).join('')}</ul>`;
+  const sectionHtml = (heading, items) => items.length ? `<section class="all-pages-section"><h2>${esc(heading)}</h2>${listHtml(items)}</section>` : '';
+  const body = `<main class="article"><header class="article-head"><h1>${esc(title)}</h1><p class="article-description">${esc(description)}</p></header><div class="prose">${sectionHtml(english ? 'Pages' : '固定ページ', languagePages)}${sectionHtml(english ? 'Articles' : '記事一覧', languageArticles)}</div></main>`;
+  const destination = path.join(out, route.replace(/^\/+|\/+$/g, ''), 'index.html');
+  await fs.mkdir(path.dirname(destination), { recursive: true });
+  await fs.writeFile(destination, shell({ title: `${title} | ${site.title}`, description, canonical: absoluteUrl(route), site, basePath, body, customHeadHtml, customBodyHtml, footerHtml: footerHtmlFor(language), brandColor, lang: language, labels: localeText(language), homePath: language === defaultLanguage ? '/' : `/${language}/` }));
+}
 const articlesPerPage = 15;
 const languageHomePath = (language) => language === defaultLanguage ? '/' : `/${language}/`;
 for (const language of languages) {
@@ -648,7 +673,7 @@ for (const page of pages) {
   }));
 }
 
-await fs.writeFile(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${esc(absoluteUrl('/'))}</loc></url>${languages.filter((language) => language !== defaultLanguage).map((language) => `<url><loc>${esc(absoluteUrl(languageHomePath(language)))}</loc></url>`).join('')}${sitemap.join('')}${pages.map((page) => `<url><loc>${esc(absoluteUrl(`/${page.permalink}/`))}</loc></url>`).join('')}</urlset>`);
+await fs.writeFile(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${esc(absoluteUrl('/'))}</loc></url>${languages.filter((language) => language !== defaultLanguage).map((language) => `<url><loc>${esc(absoluteUrl(languageHomePath(language)))}</loc></url>`).join('')}${sitemap.join('')}${pages.map((page) => `<url><loc>${esc(absoluteUrl(`/${page.permalink}/`))}</loc></url>`).join('')}${allPagesLanguages.map((language) => `<url><loc>${esc(absoluteUrl(language === defaultLanguage ? '/all-pages/' : `/${language}/all-pages/`))}</loc></url>`).join('')}</urlset>`);
 await fs.writeFile(path.join(out, 'rss.xml'), `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${esc(site.title)}</title><link>${esc(absoluteUrl('/'))}</link><description>${esc(site.description)}</description><language>${esc(site.language || 'ja-JP')}</language>${rss.join('')}</channel></rss>`);
 await fs.writeFile(path.join(out, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${absoluteUrl('/sitemap.xml')}\n`);
 await fs.cp(path.join(root, 'public'), out, { recursive: true });
