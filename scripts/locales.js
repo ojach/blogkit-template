@@ -2,8 +2,8 @@ const dictionaries = {
   ja: {
     articles: '記事一覧', rss: 'RSS', search: '記事を検索', searchPlaceholder: 'タイトル・説明文から検索',
     noArticles: '記事はまだありません。', noDate: '日付未設定',
-    introTitle: 'OJapp Tips', introDescription: 'PWAツール開発者が書く Web のノウハウ集',
-    sideDescription: '机上の理論だけじゃない。実際に作って、試して得た知見を。',
+    introTitle: '記事を書くことに、集中する。', introDescription: 'Markdownで書いて、自分のドメインに公開。',
+    sideDescription: '普通のMarkdownファイルから、自分のブログを育てます。',
     toc: '目次', summary: '1分で読める要約', next: '次に読む',
     author: 'この記事を書いた人', profile: 'プロフィールを見る',
     recommendations: 'おすすめ記事',
@@ -21,8 +21,8 @@ const dictionaries = {
   en: {
     articles: 'Articles', rss: 'RSS', search: 'Search articles', searchPlaceholder: 'Search by title or description',
     noArticles: 'No articles yet.', noDate: 'Date not set',
-    introTitle: 'OJapp Tips', introDescription: 'Web Tips from a Tool Developer',
-    sideDescription:  'Real-world insights from building and testing web tools.',
+    introTitle: 'Focus on writing.', introDescription: 'Write in Markdown. Publish on your own domain.',
+    sideDescription: 'Build your blog from ordinary Markdown files.',
     toc: 'Contents', summary: 'A 1-minute summary', next: 'Next to read',
     author: 'About the author', profile: 'View profile',
     recommendations: 'Recommended articles',
